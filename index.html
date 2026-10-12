@@ -27,7 +27,7 @@
   --list-bg:#f1f2f4; --card-bg:#ffffff; --card-shadow:0 1px 1px rgba(9,30,66,.25),0 0 1px rgba(9,30,66,.31);
   --modal-bg:#ffffff; --pop-bg:#ffffff; --input-bg:#ffffff; --field-bg:#f7f8f9;
   --shadow-lg:0 8px 12px rgba(9,30,66,.15),0 0 1px rgba(9,30,66,.31);
-  --ok:#1f845a; --ok-bg:#dcfff1; --warn-bg:#f8e6a0; --warn-fg:#533f04; --late-bg:#ffd5d2; --late-fg:#ae2e24;
+  --ok:#1f845a; --ok-bg:#dcfff1; --done-bg:#dcfff1; --warn-bg:#f8e6a0; --warn-fg:#533f04; --late-bg:#ffd5d2; --late-fg:#ae2e24;
   --lc-none:var(--list-bg); --lc-yellow:#f8e6a0; --lc-green:#baf3db; --lc-blue:#cce0ff; --lc-purple:#dfd8fd; --lc-red:#ffd5d2; --lc-orange:#fedec8; --lc-teal:#c6edfb; --lc-pink:#fdd0ec;
   --lb-green:#4bce97; --lb-yellow:#f5cd47; --lb-orange:#fea362; --lb-red:#f87168; --lb-purple:#9f8fef; --lb-blue:#579dff; --lb-sky:#6cc3e0; --lb-pink:#e774bb;
   --lb-fg:#172b4d; --avatar:#0c66e4;
@@ -40,7 +40,7 @@
   --list-bg:#101204; --card-bg:#22272b; --card-shadow:0 1px 1px rgba(0,0,0,.5),0 0 1px rgba(0,0,0,.5);
   --modal-bg:#323940; --pop-bg:#282e33; --input-bg:#22272b; --field-bg:#2c333a;
   --shadow-lg:0 8px 12px rgba(0,0,0,.4),0 0 1px rgba(0,0,0,.5);
-  --ok:#4bce97; --ok-bg:#164b35; --warn-bg:#533f04; --warn-fg:#f8e6a0; --late-bg:#5d1f1a; --late-fg:#ffd5d2;
+  --ok:#4bce97; --ok-bg:#164b35; --done-bg:#1c3329; --warn-bg:#533f04; --warn-fg:#f8e6a0; --late-bg:#5d1f1a; --late-fg:#ffd5d2;
   --lc-yellow:#4a3c0b; --lc-green:#164b35; --lc-blue:#09326c; --lc-purple:#352c63; --lc-red:#5d1f1a; --lc-orange:#5f3811; --lc-teal:#164555; --lc-pink:#50253f;
   --lb-fg:#1d2125; --avatar:#579dff; color-scheme:dark;
 }}
@@ -52,7 +52,7 @@
   --list-bg:#101204; --card-bg:#22272b; --card-shadow:0 1px 1px rgba(0,0,0,.5),0 0 1px rgba(0,0,0,.5);
   --modal-bg:#323940; --pop-bg:#282e33; --input-bg:#22272b; --field-bg:#2c333a;
   --shadow-lg:0 8px 12px rgba(0,0,0,.4),0 0 1px rgba(0,0,0,.5);
-  --ok:#4bce97; --ok-bg:#164b35; --warn-bg:#533f04; --warn-fg:#f8e6a0; --late-bg:#5d1f1a; --late-fg:#ffd5d2;
+  --ok:#4bce97; --ok-bg:#164b35; --done-bg:#1c3329; --warn-bg:#533f04; --warn-fg:#f8e6a0; --late-bg:#5d1f1a; --late-fg:#ffd5d2;
   --lc-yellow:#4a3c0b; --lc-green:#164b35; --lc-blue:#09326c; --lc-purple:#352c63; --lc-red:#5d1f1a; --lc-orange:#5f3811; --lc-teal:#164555; --lc-pink:#50253f;
   --lb-fg:#1d2125; --avatar:#579dff; color-scheme:dark;
 }
@@ -92,6 +92,12 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .grip:hover{background:var(--hover-strong)}
 .sorting{background:var(--card-bg)!important;box-shadow:var(--shadow-lg);position:relative;z-index:2}
 body.sorting-steps,body.sorting-steps *{cursor:grabbing!important;user-select:none}
+
+/* Finished cards: green tint and faded until hovered, so they read as done before archiving */
+.card.finished{background:var(--done-bg);opacity:.62}
+.card.finished .card-title-text{text-decoration:line-through;text-decoration-color:var(--ok)}
+.card.finished:hover,.card.finished:focus-within{opacity:1}
+.ghost.finished{opacity:.95}
 
 /* Archive box */
 .archive-box{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:6px;border:1px dashed var(--border);color:var(--muted);font-weight:500;transition:background .15s,transform .15s}
@@ -516,7 +522,8 @@ function cardHtml(c,b,opts={}){
   if(c.comments.length) badges+=`<span class="badge" title="Opmerkingen">${ic('chat',14)}${c.comments.length}</span>`;
   if(checks[1]) badges+=`<span class="badge ${checks[0]===checks[1]?'ok':''}" title="Checklist-items">${ic('checklist',14)}${checks[0]}/${checks[1]}</span>`;
   if(c.members.length) badges+=c.members.map(m=>`<span class="avatar sm" title="Leon Janssen">${esc(m)}</span>`).join('');
-  return `<div class="card ${c.done?'done':''}" data-card="${c.id}" tabindex="0" aria-label="${esc(c.title)}">
+  const finished=c.done||(checks[1]>0&&checks[0]===checks[1]);
+  return `<div class="card ${c.done?'done':''} ${finished?'finished':''}" data-card="${c.id}" tabindex="0" aria-label="${esc(c.title)}">
     ${c.cover?`<div class="cover" style="background:var(--lb-${c.cover})"></div>`:''}
     <div class="card-body">
       ${lbls.length?`<div class="lbls">${lbls.map(l=>`<span class="lbl ${l.name?'wide':''}" style="background:var(--lb-${l.color})" title="${esc(l.name||COLOR_NL[l.color])}">${esc(l.name)}</span>`).join('')}</div>`:''}

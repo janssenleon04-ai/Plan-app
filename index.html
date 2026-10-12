@@ -159,8 +159,16 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .badge.soon{background:var(--warn-bg);color:var(--warn-fg)}
 .badge.late{background:#c9372c;color:#fff}
 .badges .avatar{margin-left:auto}
-.edit-btn{position:absolute;right:4px;top:4px;width:28px;height:28px;border-radius:50%;background:var(--card-bg);display:none;place-items:center;color:var(--muted)}
-.card:hover .edit-btn{display:grid}
+.card-tools{position:absolute;right:4px;top:4px;display:none;gap:2px}
+.card:hover .card-tools,.card:focus-within .card-tools{display:flex}
+.edit-btn{width:28px;height:28px;border-radius:50%;background:var(--card-bg);display:grid;place-items:center;color:var(--muted)}
+.qs-row{display:flex;align-items:flex-start;gap:8px;padding:4px 6px;margin:0 -6px;border-radius:4px}
+.qs-row:hover{background:var(--hover)}
+.qs-row input{width:16px;height:16px;margin-top:2px;flex:none}
+.qs-row span{flex:1;min-width:0;overflow-wrap:anywhere}
+.qs-row.done span{text-decoration:line-through;color:var(--muted)}
+.qs-row .icon-btn{width:22px;height:22px;visibility:hidden}
+.qs-row:hover .icon-btn{visibility:visible}
 .edit-btn:hover{background:var(--field-bg)}
 .meta-line{font-size:11px;color:var(--muted);margin-top:2px}
 
@@ -495,7 +503,7 @@ function cardHtml(c,b,opts={}){
       ${opts.meta?`<div class="meta-line">${esc(opts.meta)}</div>`:''}
       <div class="badges">${badges}</div>
     </div>
-    <button class="edit-btn" data-act="openCard" data-id="${c.id}" aria-label="Kaart openen">${ic('pencil',14)}</button>
+    <div class="card-tools"><button class="edit-btn" data-act="quickSteps" data-id="${c.id}" aria-label="Actiestappen" title="Actiestappen">${ic('checklist',14)}</button><button class="edit-btn" data-act="openCard" data-id="${c.id}" aria-label="Kaart openen" title="Kaart openen">${ic('pencil',14)}</button></div>
   </div>`;
 }
 
@@ -774,7 +782,25 @@ function openPop(anchor,title,html,after){
   p.style.left=left+'px';p.style.top=top+'px';
   after&&after(p);
 }
-function closePop(){if(popEl){popEl.remove();popEl=null;popAnchor=null}}
+function closePop(){if(popEl){const qi=popEl.querySelector('#qsInput');if(qi&&qi.value.trim())addQuickStep(qi.value.trim());popEl.remove();popEl=null;popAnchor=null}}
+/* quick action steps straight from the card, without opening it */
+let qsCard=null;
+function fillQuickSteps(){
+  const body=popEl&&popEl.querySelector('#qsBody');if(!body)return;
+  const loc=locate(qsCard);if(!loc){closePop();return}
+  const draft=body.querySelector('#qsInput')?.value||'';
+  const c=loc.card;const items=c.checklists.flatMap(cl=>cl.items.map(it=>({cl,it})));
+  const dn=items.filter(x=>x.it.done).length,pc=items.length?Math.round(dn/items.length*100):0;
+  body.innerHTML=`<div style="font-weight:600;margin:2px 0 8px;overflow-wrap:anywhere">${esc(c.title)}</div>
+    ${items.length?`<div class="progress ${dn===items.length?'full':''}"><span style="width:32px">${pc}%</span><span class="bar"><i style="width:${pc}%"></i></span></div>`:''}
+    ${items.map(({cl,it})=>`<label class="qs-row ${it.done?'done':''}"><input type="checkbox" data-qs-toggle="${cl.id}:${it.id}" ${it.done?'checked':''}><span>${esc(it.text)}</span><button type="button" class="icon-btn" data-act="qsDel" data-id="${cl.id}:${it.id}" aria-label="Stap verwijderen">${ic('x',12)}</button></label>`).join('')}
+    <form id="qsForm" style="display:flex;gap:6px;margin-top:8px"><input class="field" id="qsInput" placeholder="Een stap toevoegen" aria-label="Stap toevoegen" autocomplete="off" value="${esc(draft)}"><button class="btn sm" type="submit">Toevoegen</button></form>`;
+}
+function addQuickStep(text){
+  const loc=locate(qsCard);if(!loc)return;const c=loc.card;
+  let cl=c.checklists[0];if(!cl){cl={id:uid(),title:'Actiestappen',items:[]};c.checklists.push(cl)}
+  cl.items.push({id:uid(),text,done:false});save();renderInbox();renderPlanner();renderBoard(true);
+}
 function repop(){
   if(!popKey){closePop();return}
   const [act,id]=popKey;closePop();
@@ -1007,6 +1033,9 @@ const ACT={
   saveAsTemplate(id){const c=locate(id).card;const t=cloneCard(c);t.done=false;t.due=null;t.watch=false;t.comments=[];t.activity=[];t.checklists.forEach(cl=>cl.items.forEach(i=>i.done=false));
     S.templates.push(t);save();toast(`Sjabloon "${t.title}" opgeslagen`);ACT.openCard(t.id)},
   manageTemplates(){ACT.templateMenu(board().lists[0]?.id||'inbox',document.querySelector('.top [data-act=createMenu]'))},
+  quickSteps(id,a){qsCard=id;openPop(a,'Actiestappen','<div id="qsBody"></div>');fillQuickSteps();
+    const p=popEl,r=a.getBoundingClientRect();if(p.offsetTop+p.offsetHeight>innerHeight-8)p.style.top=Math.max(8,r.top-p.offsetHeight-6)+'px';$('#qsInput').focus()},
+  qsDel(v){const [clid,iid]=v.split(':');const cl=locate(qsCard).card.checklists.find(x=>x.id===clid);cl.items=cl.items.filter(i=>i.id!==iid);save();renderInbox();renderPlanner();renderBoard(true);fillQuickSteps();$('#qsInput').focus()},
   weekPrev(){weekStart.setDate(weekStart.getDate()-7);renderPlanner()},
   weekNext(){weekStart.setDate(weekStart.getDate()+7);renderPlanner()},
   weekToday(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));weekStart=d;renderPlanner()},
@@ -1066,6 +1095,7 @@ document.addEventListener('submit',e=>{
   if(f.dataset.composerForm){const id=f.dataset.composerForm;const t=f.querySelector('textarea');const v=t.value.trim();if(!v){t.focus();return}addCardTo(id,v);commit();const z=document.querySelector(`[data-list="${id}"] .cards`);z&&(z.scrollTop=z.scrollHeight);return}
   if(f.id==='inboxForm'){const t=$('#inboxAdd');const v=t.value.trim();if(!v)return;t.value='';addCardTo('inbox',v);commit();$('#inboxAdd').focus();return}
   if(f.dataset.addListForm){const bid=f.dataset.addListForm;const inp=f.querySelector('input');const v=inp.value.trim();if(!v){inp.focus();return}S.boards.find(b=>b.id===bid).lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=document.querySelector(`[data-lists="${bid}"]`);l.scrollLeft=l.scrollWidth;return}
+  if(f.id==='qsForm'){const i=$('#qsInput');const v=i.value.trim();if(!v)return;i.value='';addQuickStep(v);fillQuickSteps();$('#qsInput').focus();return}
   if(f.id==='commentForm'){const t=$('#commentInput');const v=t.value.trim();if(!v)return;t.value='';locate(modalId).card.comments.push({id:uid(),text:v,at:Date.now()});commit();return}
   if(f.id==='clForm'){const c=locate(f.dataset.id).card;const t=$('#clTitle').value.trim()||'Actiestappen';const cl={id:uid(),title:t,items:[]};c.checklists.push(cl);closePop();pendingFocus='ciadd-'+cl.id;commit();return}
   if(f.dataset.ciAdd==='new'){const v=f.querySelector('input').value.trim();if(!v)return;const cl={id:uid(),title:'Actiestappen',items:[{id:uid(),text:v,done:false}]};locate(modalId).card.checklists.push(cl);pendingFocus='ciadd-'+cl.id;commit();return}
@@ -1075,6 +1105,7 @@ document.addEventListener('submit',e=>{
 });
 document.addEventListener('change',e=>{
   const t=e.target;
+  if(t.dataset.qsToggle){const [clid,iid]=t.dataset.qsToggle.split(':');const it=locate(qsCard).card.checklists.find(x=>x.id===clid).items.find(i=>i.id===iid);it.done=t.checked;save();renderInbox();renderPlanner();renderBoard(true);fillQuickSteps();return}
   if(t.id==='attInput'){const fs=[...t.files];t.value='';if(fs.length)addFiles(modalId,fs);return}
   if(t.dataset.filter){const [set,val]=t.dataset.filter.split(':');t.checked?filter[set].add(val):filter[set].delete(val);renderAll();return}
   if(t.dataset.cardLabel){ACT.toggleCardLabel(t.dataset.cardLabel);return}

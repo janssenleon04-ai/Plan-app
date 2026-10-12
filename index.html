@@ -410,6 +410,7 @@ const DAG=['zo','ma','di','wo','do','vr','za'];
 const fmtDue=s=>{const d=parseISO(s);return `${d.getDate()} ${MAAND[d.getMonth()]}`};
 const fmtTime=t=>{const d=new Date(t);return `${d.getDate()} ${MAAND[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const ICONS={
+ download:'<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>', upload:'<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19h14"/>',
  plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
  dots:'<circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/>',
  collapse:'<path d="M2 12h7M6 8.5L9.5 12 6 15.5M22 12h-7M18 8.5L14.5 12l3.5 3.5"/>',
@@ -951,8 +952,33 @@ const ACT={
       <div class="btn-row"><button class="btn primary sm" data-act="createBoard">Bord maken</button></div>
       <div class="menu-sep"></div>
       <button class="menu-item" data-act="newInboxCard">${ic('inbox')}Kaart in Inbox maken</button>
-      <button class="menu-item" data-act="manageTemplates">${ic('cover')}Sjablonen</button>`,p=>{p.querySelector('#newBoardTitle').focus();
+      <button class="menu-item" data-act="manageTemplates">${ic('cover')}Sjablonen</button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" data-act="exportData">${ic('download')}Back-up opslaan</button>
+      <button class="menu-item" data-act="importData">${ic('upload')}Back-up terugzetten</button>`,p=>{p.querySelector('#newBoardTitle').focus();
       p.querySelector('#newBgPick').addEventListener('click',e=>{const s=e.target.closest('[data-bg]');if(!s)return;p.querySelectorAll('[data-bg]').forEach(x=>x.classList.toggle('sel',x===s))})});
+  },
+  async exportData(){closePop();
+    const ids=new Set();(function walk(o){if(!o||typeof o!=='object')return;if(Array.isArray(o.attachments))o.attachments.forEach(x=>x&&x.id&&ids.add(x.id));Object.values(o).forEach(walk)})(S);
+    const files={};
+    for(const id of ids){try{const f=await FILES.get(id);if(f)files[id]=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(f)})}catch(e){}}
+    const blob=new Blob([JSON.stringify({app:'planbord',versie:1,gemaakt:new Date().toISOString(),state:S,files})],{type:'application/json'});
+    const d=new Date(),pad=n=>String(n).padStart(2,'0');
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`planbord-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    toast(`Back-up opgeslagen (${S.boards.length} ${S.boards.length===1?'bord':'borden'}, ${Object.keys(files).length} bijlagen)`);
+  },
+  importData(){closePop();
+    const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+    inp.onchange=async()=>{const f=inp.files[0];if(!f)return;
+      let data;try{data=JSON.parse(await f.text())}catch(e){toast('Dit bestand is geen geldige Planbord-back-up.');return}
+      if(!data||data.app!=='planbord'||!data.state||!Array.isArray(data.state.boards)||!data.state.boards.length){toast('Dit bestand is geen geldige Planbord-back-up.');return}
+      if(!confirm(`Back-up van ${data.gemaakt?new Date(data.gemaakt).toLocaleString('nl-NL'):'onbekende datum'} terugzetten?\n\nAlle borden op dit apparaat worden vervangen door de borden uit de back-up.`))return;
+      for(const [id,url] of Object.entries(data.files||{})){try{await FILES.put(id,await (await fetch(url)).blob())}catch(e){}}
+      try{localStorage.setItem(LS_KEY,JSON.stringify(data.state))}catch(e){toast('Terugzetten mislukt: de opslag van je browser is vol.');return}
+      location.reload();
+    };
+    inp.click();
   },
   createBoard(){
     const t=$('#newBoardTitle').value.trim(); if(!t){$('#newBoardTitle').focus();return}
@@ -1414,7 +1440,6 @@ function endDrag(){
 renderAll();
 })();
 </script>
-
 <script>
 // App-functies: offline werken en een knop "Installeren" zodra de browser dat aanbiedt.
 if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}

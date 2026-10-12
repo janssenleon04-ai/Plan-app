@@ -1102,7 +1102,7 @@ const CLOUD=(()=>{
       if(!st.base){choice=row;paint();ACT.accountMenu();return}   // first sync on this device: let the person pick which copy to keep
       if(row.updated_at===st.base)return;
       pendingRemote=row;tryApply();
-    }catch(e){fail(e)}finally{pulling=false}
+    }catch(e){fail(e)}finally{pulling=false;runOps()}
   }
   function tryApply(){
     if(!pendingRemote)return;
@@ -1129,6 +1129,49 @@ const CLOUD=(()=>{
     }catch(e){fail(e);clearTimeout(pushTimer);pushTimer=setTimeout(push,15000)}
     finally{pushing=false}
   }
+  /* opdrachten van Claude (zie supabase/claude-toegang.sql): de app voert ze uit als gewone wijziging en synchroniseert dan */
+  let opsBusy=false,opsOff=false;
+  const findBoard=v=>v&&S.boards.find(b=>b.id===v||b.title.trim().toLowerCase()===String(v).trim().toLowerCase());
+  function findTarget(o){
+    const want=o.lijst&&String(o.lijst).trim().toLowerCase();
+    if(!want||want==='inbox')return 'inbox';
+    const bs=findBoard(o.bord)?[findBoard(o.bord)]:[board(),...S.boards];
+    for(const b of bs){const l=b.lists.find(l=>l.id===o.lijst||l.title.trim().toLowerCase()===want);if(l)return l.id}
+    return 'inbox';
+  }
+  function runOp(id,o){
+    if(o.soort==='toevoegen'){
+      const cid='cl'+id;if(locate(cid)||!o.titel)return 0;
+      const due=/^\d{4}-\d{2}-\d{2}$/.test(o.datum||'')?o.datum:null;
+      const checklists=Array.isArray(o.checklist)&&o.checklist.length?[{id:uid(),title:'Checklist',items:o.checklist.map(t=>({id:uid(),text:String(t),done:false}))}]:[];
+      addCardTo(findTarget(o),String(o.titel),{id:cid,desc:String(o.beschrijving||''),due,checklists,activity:[{text:'is door Claude toegevoegd',at:Date.now()}]});
+      return 1;
+    }
+    const loc=o.kaart&&locate(o.kaart);if(!loc||loc.archived)return 0;
+    if(o.soort==='klaar'){if(loc.card.done)return 0;loc.card.done=true;log(loc.card,'is door Claude als klaar gemarkeerd');return 1}
+    if(o.soort==='archiveren'){
+      loc.arr.splice(loc.i,1);const b=loc.board||board();
+      b.archive.cards.unshift({card:loc.card,listId:loc.list?loc.list.id:'inbox',at:Date.now()});
+      log(loc.card,'is door Claude gearchiveerd');return 1;
+    }
+    return 0;
+  }
+  async function runOps(){
+    if(!auth||opsBusy||opsOff||choice||pendingRemote||!st.base||busy())return;opsBusy=true;
+    try{
+      const r=await call('/rest/v1/planbord_opdrachten?select=id&limit=1');
+      if(!r.ok){if(r.status===404||r.status===400)opsOff=true;return}   // tabel bestaat nog niet: niet blijven vragen
+      if(!(await r.json()).length)return;
+      // ophalen en meteen weghalen, zodat twee apparaten dezelfde opdracht niet allebei uitvoeren
+      const d=await call('/rest/v1/planbord_opdrachten?user_id=eq.'+auth.user.id+'&select=id,opdracht',{method:'DELETE',headers:{Prefer:'return=representation'}});
+      if(!d.ok)return;
+      const rows=(await d.json()).sort((a,b)=>a.id-b.id);let n=0;
+      for(const row of rows){try{n+=runOp(row.id,row.opdracht||{})}catch(e){}}
+      if(n){commit();toast(n===1?'Claude heeft 1 wijziging gedaan':`Claude heeft ${n} wijzigingen gedaan`)}
+    }catch(e){}finally{opsBusy=false}
+  }
+  async function claudeKey(){const r=await call('/rest/v1/rpc/claude_sleutel_maken',{method:'POST',json:{}});if(!r.ok)throw new Error(await errText(r));opsOff=false;return r.json()}
+  async function claudeOff(){const r=await call('/rest/v1/rpc/claude_sleutel_intrekken',{method:'POST',json:{}});if(!r.ok)throw new Error(await errText(r))}
   /* attachments: kept in IndexedDB on each device, with a copy in the 'bijlagen' bucket */
   const objPath=id=>`/storage/v1/object/bijlagen/${auth.user.id}/${encodeURIComponent(id)}`;
   function allAtt(){const ids=new Set();(function walk(o){if(!o||typeof o!=='object')return;if(Array.isArray(o.attachments))o.attachments.forEach(a=>a&&a.id&&ids.add(a.id));Object.values(o).forEach(walk)})(S);return ids}
@@ -1181,7 +1224,9 @@ const CLOUD=(()=>{
       <button class="btn primary sm acct-wide" data-act="acctUseCloud">Borden uit mijn account gebruiken</button><small class="acct-sub">De borden op dit apparaat worden vervangen.</small>
       <button class="btn sm acct-wide" data-act="acctUseLocal">Borden van dit apparaat bewaren</button><small class="acct-sub">Je account krijgt de borden van dit apparaat.</small>`}
     else{const [k,t]=stateLine();h=`<p class="acct-p"><b>${esc(auth.user.email)}</b></p><p class="acct-state" data-k="${k}"><i></i>${esc(t)}</p>
-      <div class="btn-row"><button class="btn sm" data-act="acctSync">Nu synchroniseren</button><button class="btn sm" data-act="acctLogout">Uitloggen</button></div>`}
+      <div class="btn-row"><button class="btn sm" data-act="acctSync">Nu synchroniseren</button><button class="btn sm" data-act="acctLogout">Uitloggen</button></div>
+      <div class="menu-sep"></div><p class="acct-p">Laat Claude kaarten toevoegen, afvinken en archiveren.</p>
+      <div class="btn-row"><button class="btn sm" data-act="acctClaudeKey">Sleutel voor Claude maken</button><button class="btn sm" data-act="acctClaudeOff">Claude-toegang intrekken</button></div>`}
     box.innerHTML=h+(msg?`<p class="acct-msg">${esc(msg)}</p>`:'');
   }
   function start(){
@@ -1212,7 +1257,7 @@ const CLOUD=(()=>{
     return false;
   }
   return {
-    init,changed,upload,download,removeFile,fill,
+    init,changed,upload,download,removeFile,fill,claudeKey,claudeOff,
     signedIn:()=>!!auth,
     async login(email,pw){msg='';const s=await authPost('/auth/v1/token?grant_type=password',{email,password:pw});const before=auth&&auth.user.id;setSession(s);if(before!==auth.user.id){st=fresh();saveSt()}start();pull(true)},
     async signup(email,pw){msg='';const j=await authPost('/auth/v1/signup?redirect_to='+encodeURIComponent(appUrl()),{email,password:pw});
@@ -1260,6 +1305,14 @@ const ACT={
   async acctForgot(){const e=$('#acctEmail').value.trim();if(!e){CLOUD.setMsg('Vul eerst je e-mailadres in.');$('#acctEmail').focus();return}
     try{await CLOUD.forgot(e)}catch(x){CLOUD.setMsg(x.message)}},
   acctSync(){CLOUD.syncNow()},
+  async acctClaudeKey(){
+    if(!confirm('Een nieuwe sleutel voor Claude maken? Een eerdere sleutel werkt daarna niet meer.'))return;
+    try{const k=await CLOUD.claudeKey();try{await navigator.clipboard.writeText(k)}catch(e){}
+      prompt('Je sleutel voor Claude (staat ook op je klembord). Bewaar hem als geheim, deel hem met niemand anders:',k)}
+    catch(x){CLOUD.setMsg(/could not find the function|claude_sleutel/i.test(x.message)?'Voer eerst supabase/claude-toegang.sql uit in Supabase.':x.message)}},
+  async acctClaudeOff(){
+    if(!confirm('Claude-toegang intrekken? De sleutel werkt dan niet meer en wachtende opdrachten worden weggehaald.'))return;
+    try{await CLOUD.claudeOff();toast('Claude-toegang ingetrokken')}catch(x){CLOUD.setMsg(x.message)}},
   acctLogout(){closePop();CLOUD.logout()},
   acctUseCloud(){CLOUD.useCloud()},
   acctUseLocal(){CLOUD.useLocal()},

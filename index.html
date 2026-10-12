@@ -99,6 +99,29 @@ body.sorting-steps,body.sorting-steps *{cursor:grabbing!important;user-select:no
 .card.finished:hover,.card.finished:focus-within{opacity:1}
 .ghost.finished{opacity:.95}
 
+/* List layouts: side by side (default), grid with several rows, or stacked */
+.lists.layout-raster{flex-wrap:wrap;overflow-y:auto;overflow-x:hidden;align-content:flex-start}
+.lists.layout-kolom{flex-direction:column;align-items:stretch;overflow-y:auto;overflow-x:hidden}
+.lists.layout-raster .list,.lists.layout-kolom .list{max-height:none}
+.lists.layout-raster .cards,.lists.layout-kolom .cards{overflow:visible}
+.lists.layout-kolom .list,.lists.layout-kolom .add-list,.lists.layout-kolom .ph-list{width:auto;max-width:760px}
+.lists.layout-kolom .list.collapsed{flex-direction:row;padding:10px 12px;width:auto}
+.lists.layout-kolom .list.collapsed .vtitle{writing-mode:horizontal-tb;flex:1}
+.lists.layout-raster .ph-list,.lists.layout-kolom .ph-list{align-self:flex-start}
+.layout-opt{display:flex;align-items:center;gap:10px;width:calc(100% + 24px);margin:0 -12px;padding:8px 12px;text-align:left}
+.layout-opt:hover{background:var(--hover)}
+.layout-opt.on{color:var(--accent);font-weight:600}
+.layout-opt small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+
+.own-color{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;background:var(--hover)}
+.own-color:hover{background:var(--hover-strong)}
+.own-color input{width:32px;height:24px;padding:0;border:0;background:none;cursor:pointer}
+.own-color i{width:20px;height:20px;border-radius:4px;margin-left:auto}
+.lbl-color{width:40px;height:28px;border-radius:4px;flex:none}
+.lbl-color:hover{filter:brightness(.9)}
+.list.ink-light>.list-head,.list.ink-light>.list-foot,.list.ink-light.collapsed{color:#fff;--muted:rgba(255,255,255,.8);--hover:rgba(255,255,255,.16)}
+.card{color:var(--fg)}
+
 /* Archive box */
 .archive-box{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:6px;border:1px dashed var(--border);color:var(--muted);font-weight:500;transition:background .15s,transform .15s}
 .archive-box:hover{background:var(--hover);color:var(--fg)}
@@ -415,6 +438,9 @@ const ICONS={
  restore:'<path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4"/>',
  image:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-9 8.5"/>',
  clip:'<path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+ layout:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+ rows:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+ cols:'<path d="M6 4v16M12 4v16M18 4v16"/>',
  split:'<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M12 4.5v15"/>',
  sort:'<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>'
 };
@@ -431,6 +457,19 @@ const BGS={
 };
 const LIST_COLORS=['none','yellow','green','blue','purple','red','orange','teal','pink'];
 const LABEL_COLORS=['green','yellow','orange','red','purple','blue','sky','pink'];
+// Extra ready-made colours next to the theme ones; any '#rrggbb' from the colour picker works too.
+const EXTRA_COLORS=['#94c748','#1f845a','#0c66e4','#09326c','#6e5dc6','#ae4787','#c9372c','#e56910','#a54800','#7f5f01','#626f86','#172b4d'];
+const isHex=c=>typeof c==='string'&&c[0]==='#';
+const lb=c=>isHex(c)?c:`var(--lb-${c})`;
+const lc=c=>isHex(c)?c:c==='none'?'var(--list-bg)':`var(--lc-${c})`;
+function darkHex(c){const n=parseInt(c.slice(1),16);const r=n>>16&255,g=n>>8&255,b=n&255;return (0.299*r+0.587*g+0.114*b)<150}
+const ink=c=>isHex(c)?`color:${darkHex(c)?'#fff':'#172b4d'};`:'';
+const cname=c=>isHex(c)?'Eigen kleur':(COLOR_NL[c]||c);
+function colorPicker(kind,id,cur,named){
+  return `<div class="swatches">${named.map(c=>`<button class="swatch ${cur===c?'sel':''}" style="background:${kind==='list'?lc(c):lb(c)};${c==='none'?'box-shadow:inset 0 0 0 1px var(--border)':''}" data-act="pickColor" data-id="${kind}|${id}|${c}" aria-label="${cname(c)}" title="${cname(c)}"></button>`).join('')}
+    ${EXTRA_COLORS.map(c=>`<button class="swatch ${cur===c?'sel':''}" style="background:${c}" data-act="pickColor" data-id="${kind}|${id}|${c}" aria-label="${c}" title="${c}"></button>`).join('')}</div>
+    <label class="own-color"><input type="color" data-color-pick="${kind}|${id}" value="${isHex(cur)?cur:'#6e5dc6'}"><span>Eigen kleur kiezen</span>${isHex(cur)&&!EXTRA_COLORS.includes(cur)?`<i style="background:${cur}"></i>`:''}</label>`;
+}
 const COLOR_NL={none:'Geen',yellow:'Geel',green:'Groen',blue:'Blauw',purple:'Paars',red:'Rood',orange:'Oranje',teal:'Turquoise',pink:'Roze',sky:'Lichtblauw'};
 
 /* ---------- state ---------- */
@@ -524,9 +563,9 @@ function cardHtml(c,b,opts={}){
   if(c.members.length) badges+=c.members.map(m=>`<span class="avatar sm" title="Leon Janssen">${esc(m)}</span>`).join('');
   const finished=c.done||(checks[1]>0&&checks[0]===checks[1]);
   return `<div class="card ${c.done?'done':''} ${finished?'finished':''}" data-card="${c.id}" tabindex="0" aria-label="${esc(c.title)}">
-    ${c.cover?`<div class="cover" style="background:var(--lb-${c.cover})"></div>`:''}
+    ${c.cover?`<div class="cover" style="background:${lb(c.cover)}"></div>`:''}
     <div class="card-body">
-      ${lbls.length?`<div class="lbls">${lbls.map(l=>`<span class="lbl ${l.name?'wide':''}" style="background:var(--lb-${l.color})" title="${esc(l.name||COLOR_NL[l.color])}">${esc(l.name)}</span>`).join('')}</div>`:''}
+      ${lbls.length?`<div class="lbls">${lbls.map(l=>`<span class="lbl ${l.name?'wide':''}" style="background:${lb(l.color)};${ink(l.color)}" title="${esc(l.name||cname(l.color))}">${esc(l.name)}</span>`).join('')}</div>`:''}
       <div class="card-title"><button class="tick" data-act="toggleDone" data-id="${c.id}" aria-label="${c.done?'Markeren als niet voltooid':'Markeren als voltooid'}">${ic(c.done?'circleCheck':'circle',16)}</button><span class="card-title-text">${esc(c.title)}</span></div>
       ${opts.meta?`<div class="meta-line">${esc(opts.meta)}</div>`:''}
       <div class="badges">${badges}</div>
@@ -566,10 +605,12 @@ function renderPane(pane,b,multi){
     <button class="bh-btn" data-act="toggleStar" aria-label="${b.starred?'Ster verwijderen':'Ster toevoegen'}" title="Bord met ster markeren">${b.starred?'<svg class="ic starred" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.8">'+ICONS.star+'</svg>':ic('star')}</button>
     <span class="bh-spacer"></span>
     <button class="bh-btn ${fc?'on':''}" data-act="filterMenu" title="Filter">${ic('filter')}<span class="${multi?'hide-multi':''}">Filter${fc?` (${fc})`:''}</span></button>
+    <button class="bh-btn" data-act="layoutMenu" title="Indeling van de lijsten" aria-label="Indeling van de lijsten">${ic('layout')}</button>
     <button class="bh-btn hide-narrow" data-act="splitMenu" title="Nog een bord ernaast openen" aria-label="Nog een bord ernaast openen">${ic('split')}</button>
     <button class="bh-btn" data-act="openDrawer" aria-label="Bordmenu">${ic('dots')}</button>
     ${multi?`<button class="bh-btn hide-narrow" data-act="closePane" data-id="${b.id}" aria-label="Dit bord sluiten" title="Sluiten in splitscreen">${ic('x')}</button>`:''}`;
   const lists=pane.querySelector('.lists'); const scrolls={};
+  lists.classList.toggle('layout-raster',b.layout==='raster');lists.classList.toggle('layout-kolom',b.layout==='kolom');
   lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z)scrolls[el.dataset.list]=z.scrollTop});
   lists.innerHTML=b.lists.map(l=>listHtml(l,b)).join('')+`<div class="add-list">${addingList===b.id?`<form data-add-list-form="${b.id}"><input placeholder="Voer lijstnaam in…" aria-label="Lijstnaam"><div class="composer-row"><button class="btn primary sm" type="submit">Lijst toevoegen</button><button type="button" class="icon-btn" data-act="cancelAddList" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button data-act="addList" data-id="${b.id}">${ic('plus')}Voeg een andere lijst toe</button>`}</div>`;
   lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z&&scrolls[el.dataset.list])z.scrollTop=scrolls[el.dataset.list]});
@@ -577,8 +618,8 @@ function renderPane(pane,b,multi){
 }
 function listHtml(l,b){
   const vis=l.cards.filter(matches);
-  if(l.collapsed) return `<div class="list collapsed" data-list="${l.id}" data-act="collapse" data-id="${l.id}" style="--lbg:var(--lc-${l.color})" title="Lijst uitklappen">${ic('collapse')}<span class="vtitle">${esc(l.title)}</span><span class="count">${vis.length}</span></div>`;
-  return `<div class="list" data-list="${l.id}" style="--lbg:var(--lc-${l.color})">
+  if(l.collapsed) return `<div class="list collapsed" data-list="${l.id}" data-act="collapse" data-id="${l.id}" style="--lbg:${lc(l.color)}" title="Lijst uitklappen">${ic('collapse')}<span class="vtitle">${esc(l.title)}</span><span class="count">${vis.length}</span></div>`;
+  return `<div class="list ${isHex(l.color)&&darkHex(l.color)?'ink-light':''}" data-list="${l.id}" style="--lbg:${lc(l.color)}">
     <div class="list-head">
       ${editingListTitle===l.id?`<input class="list-title-input" data-list-title-input="${l.id}" value="${esc(l.title)}" aria-label="Lijstnaam">`:`<h2 class="list-title" style="font-size:14px;margin:0" data-title-of="${l.id}">${esc(l.title)}</h2>`}
       <span class="count" title="Aantal kaarten">${vis.length}</span>
@@ -673,7 +714,7 @@ function renderDrawer(){
     <h4>Achtergrond</h4>
     <div class="swatches">${Object.keys(BGS).map(k=>`<button class="swatch bg-swatch ${b.bg===k?'sel':''}" style="background:${BGS[k]}" data-act="setBg" data-id="${k}" aria-label="Achtergrond ${k}" title="${k}"></button>`).join('')}</div>
     <h4>Labels</h4>
-    ${b.labels.map(l=>`<div class="lbl-edit"><i style="background:var(--lb-${l.color})"></i><input class="field" data-label-name="${l.id}" value="${esc(l.name)}" placeholder="${COLOR_NL[l.color]} (zonder naam)" aria-label="Labelnaam ${COLOR_NL[l.color]}"><button class="icon-btn" data-act="delLabel" data-id="${l.id}" aria-label="Label verwijderen">${ic('trash',14)}</button></div>`).join('')}
+    ${b.labels.map(l=>`<div class="lbl-edit"><button class="lbl-color" style="background:${lb(l.color)}" data-act="labelColorMenu" data-id="${l.id}" aria-label="Kleur van label wijzigen" title="Kleur wijzigen"></button><input class="field" data-label-name="${l.id}" value="${esc(l.name)}" placeholder="${cname(l.color)} (zonder naam)" aria-label="Labelnaam ${COLOR_NL[l.color]}"><button class="icon-btn" data-act="delLabel" data-id="${l.id}" aria-label="Label verwijderen">${ic('trash',14)}</button></div>`).join('')}
     <button class="btn sm" data-act="addLabel">${ic('plus',14)}Label toevoegen</button>
     <h4>Gearchiveerde kaarten (${b.archive.cards.length})</h4>
     ${b.archive.cards.length?b.archive.cards.map(a=>`<div class="arch-item"><span class="grow">${esc(a.card.title)}</span><button class="btn sm" data-act="restoreCard" data-id="${a.card.id}">Herstellen</button><button class="icon-btn" data-act="openCard" data-id="${a.card.id}" aria-label="Openen">${ic('pencil',14)}</button></div>`).join(''):'<p style="color:var(--muted);font-size:13px;margin:0">Nog geen gearchiveerde kaarten.</p>'}
@@ -698,7 +739,7 @@ function renderModal(){
   const st=dueState(c);
   const acts=[...c.comments.map(x=>({...x,kind:'c'})),...(c.activity||[]).map(x=>({...x,kind:'a'}))].sort((a,z)=>z.at-a.at);
   root.innerHTML=`<div class="modal-back" id="modalBack"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(c.title)}">
-    ${c.cover?`<div class="m-cover" style="background:var(--lb-${c.cover})"></div>`:''}
+    ${c.cover?`<div class="m-cover" style="background:${lb(c.cover)}"></div>`:''}
     ${loc.template?`<div class="archived-note tpl-note">${ic('cover')}Dit is een sjabloon. Wijzigingen worden automatisch opgeslagen.<button class="btn primary sm" data-act="useTemplateMenu" data-id="${c.id}">Kaart maken van dit sjabloon</button></div>`:''}
     ${loc.archived?`<div class="archived-note">${ic('archive')}Deze kaart is gearchiveerd.<button class="btn sm" data-act="restoreCard" data-id="${c.id}">Herstellen</button>${deleteConfirm===c.id?`<button class="btn danger sm" data-act="deleteCard" data-id="${c.id}">Ja, definitief verwijderen</button>`:`<button class="btn sm" data-act="askDeleteCard" data-id="${c.id}">Verwijderen</button>`}</div>`:''}
     <button class="icon-btn m-close" data-act="closeModal" aria-label="Sluiten">${ic('x',20)}</button>
@@ -709,7 +750,7 @@ function renderModal(){
       <div class="m-main">
         <div class="m-meta">
           ${c.members.length?`<div><h4>Leden</h4><div class="row">${c.members.map(m=>`<span class="avatar" title="Leon Janssen">${esc(m)}</span>`).join('')}</div></div>`:''}
-          ${lbls.length?`<div><h4>Labels</h4><div class="row">${lbls.map(l=>`<span class="lbl wide" style="background:var(--lb-${l.color})">${esc(l.name||' ')}</span>`).join('')}<button class="chipbtn" data-act="labelMenu" data-id="${c.id}" aria-label="Labels bewerken">${ic('plus')}</button></div></div>`:''}
+          ${lbls.length?`<div><h4>Labels</h4><div class="row">${lbls.map(l=>`<span class="lbl wide" style="background:${lb(l.color)};${ink(l.color)}">${esc(l.name||' ')}</span>`).join('')}<button class="chipbtn" data-act="labelMenu" data-id="${c.id}" aria-label="Labels bewerken">${ic('plus')}</button></div></div>`:''}
           ${c.due?`<div><h4>Vervaldatum</h4><div class="row"><button class="chipbtn" data-act="dateMenu" data-id="${c.id}">${fmtDue(c.due)} ${parseISO(c.due).getFullYear()} ${st==='ok'?'<span class="duepill ok">Voltooid</span>':st==='late'?'<span class="duepill late">Verlopen</span>':st==='soon'?'<span class="duepill soon">Binnenkort</span>':''}</button></div></div>`:''}
           ${c.watch?`<div><h4>Meldingen</h4><div class="row"><button class="chipbtn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}Volgend</button></div></div>`:''}
         </div>
@@ -813,7 +854,15 @@ function attRefs(id){let n=0;const scan=c=>(c.attachments||[]).forEach(a=>a.id==
 function dropBlobs(card){(card.attachments||[]).forEach(a=>{if(!attRefs(a.id))FILES.del(a.id).catch(()=>{})})}
 
 /* ---------- popovers ---------- */
-let popEl=null, popAnchor=null, popSkip=null, popKey=null;
+let popEl=null, popAnchor=null, popSkip=null, popKey=null, popReturn=null;
+function setColor(kind,id,c){
+  if(kind==='list'){const f=findList(id);if(f)f.list.color=c}
+  if(kind==='label'){const l=S.boards.flatMap(b=>b.labels).find(x=>x.id===id);if(l)l.color=c}
+  if(kind==='cover'){const loc=locate(id);if(loc)loc.card.cover=c||null}
+  commit();
+  // after a label colour, go back to the card's label list when that is where it was opened from
+  if(kind==='label'&&popReturn){popKey=popReturn;popReturn=null;repop()}else repop();
+}
 function openPop(anchor,title,html,after){
   closePop();
   const p=document.createElement('div');p.className='pop';p.setAttribute('role','dialog');
@@ -916,6 +965,17 @@ const ACT={
     const rows=[...S.boards].sort((x,y)=>(y.starred-x.starred)).map(b=>`<div style="display:flex;align-items:center;gap:4px"><button class="board-pick ${S.open.includes(b.id)?'cur':''}" data-act="goBoard" data-id="${b.id}"><span class="thumb" style="background:${BGS[b.bg]||b.bg}"></span><span class="grow">${esc(b.title)}</span>${b.starred?'<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="#f5cd47" stroke="#f5cd47" stroke-width="1.8">'+ICONS.star+'</svg>':''}</button>${S.open.includes(b.id)||narrow()?'':`<button class="pick-split" data-act="splitBoard" data-id="${b.id}" title="Ernaast openen (splitscreen)" aria-label="${esc(b.title)} ernaast openen">${ic('split')}</button>`}</div>`).join('');
     openPop(a,'Van bord wisselen',`${rows}<div class="menu-sep"></div><form id="quickBoard" style="display:flex;gap:6px"><input class="field" id="quickBoardTitle" placeholder="Nieuw bord…" aria-label="Naam nieuw bord"><button class="btn primary sm" type="submit">Maken</button></form>`);
   },
+  pickColor(v){const [kind,id,c]=v.split('|');setColor(kind,id,c)},
+  labelColorMenu(id,a){const l=S.boards.flatMap(b=>b.labels).find(x=>x.id===id);const back=popKey;
+    openPop(a,'Labelkleur',colorPicker('label',id,l.color,LABEL_COLORS));popReturn=back&&back[0]==='labelMenu'?back:null},
+  addLabelHere(cardId){const loc=locate(cardId);const b=loc.board||board();const used=b.labels.map(l=>l.color);const c=LABEL_COLORS.find(x=>!used.includes(x))||EXTRA_COLORS[b.labels.length%EXTRA_COLORS.length];
+    const l={id:uid(),color:c,name:''};b.labels.push(l);loc.card.labels.push(l.id);commit();repop()},
+  layoutMenu(id,a){
+    const cur=board().layout||'rij';
+    const opt=(k,icon,t,sub)=>`<button class="layout-opt ${cur===k?'on':''}" data-act="setLayout" data-id="${k}">${ic(icon,18)}<span>${t}<small>${sub}</small></span></button>`;
+    openPop(a,'Indeling',opt('rij','cols','Naast elkaar','Lijsten in één rij, scrollen naar rechts')+opt('raster','layout','Raster','Meerdere rijen, scrollen naar beneden')+opt('kolom','rows','Onder elkaar','Eén lijst per rij, scrollen naar beneden'));
+  },
+  setLayout(k){board().layout=k==='rij'?undefined:k;closePop();commit()},
   splitMenu(id,a){
     const rest=S.boards.filter(b=>!S.open.includes(b.id));
     openPop(a,'Bord ernaast openen',rest.length?rest.map(b=>`<button class="board-pick" data-act="splitBoard" data-id="${b.id}"><span class="thumb" style="background:${BGS[b.bg]||b.bg}"></span><span class="grow">${esc(b.title)}</span></button>`).join('')
@@ -933,7 +993,7 @@ const ACT={
   toggleStar(){board().starred=!board().starred;commit()},
   filterMenu(id,a){
     const b=board();const ch=(set,val,label,extra='')=>`<label class="check-row"><input type="checkbox" data-filter="${set}:${val}" ${filter[set].has(val)?'checked':''}>${extra}${label}</label>`;
-    openPop(a,'Filter',`<h4>Labels</h4>${b.labels.map(l=>ch('labels',l.id,`<span class="lbl wide" style="background:var(--lb-${l.color});flex:1;line-height:28px;border-radius:4px">${esc(l.name||COLOR_NL[l.color])}</span>`)).join('')}
+    openPop(a,'Filter',`<h4>Labels</h4>${b.labels.map(l=>ch('labels',l.id,`<span class="lbl wide" style="background:${lb(l.color)};${ink(l.color)}flex:1;line-height:28px;border-radius:4px">${esc(l.name||cname(l.color))}</span>`)).join('')}
       <h4>Vervaldatum</h4>${ch('due','none','Geen datum')}${ch('due','late','Verlopen')}${ch('due','soon','Vandaag of morgen')}${ch('due','week','Binnen een week')}
       <h4>Status</h4>${ch('status','done','Voltooid')}${ch('status','open','Niet voltooid')}
       <div class="btn-row"><button class="btn sm" data-act="clearFilter">Filters wissen</button></div>`);
@@ -973,7 +1033,7 @@ const ACT={
       ${others.length&&list.cards.length?`<div class="menu-sep"></div><h4 style="margin-top:0">Alle kaarten verplaatsen naar</h4>${others.map(o=>`<button class="menu-item" data-act="moveAll" data-id="${id}:${o.id}">${ic('move')}${esc(o.title)}</button>`).join('')}`:''}
       <div class="menu-sep"></div>
       <h4 style="margin-top:0">Lijstkleur</h4>
-      <div class="swatches">${LIST_COLORS.map(c=>`<button class="swatch ${list.color===c?'sel':''}" style="background:${c==='none'?'var(--list-bg)':'var(--lc-'+c+')'};${c==='none'?'box-shadow:inset 0 0 0 1px var(--border)':''}" data-act="listColor" data-id="${id}:${c}" aria-label="${COLOR_NL[c]}" title="${COLOR_NL[c]}"></button>`).join('')}</div>
+      ${colorPicker('list',id,list.color,LIST_COLORS)}
       <div class="menu-sep"></div>
       ${list.cards.length?`<button class="menu-item" data-act="archiveAllCards" data-id="${id}">${ic('archive')}Alle kaarten in deze lijst archiveren</button>`:''}
       <button class="menu-item" data-act="archiveList" data-id="${id}">${ic('archive')}Lijst archiveren</button>`);
@@ -999,7 +1059,8 @@ const ACT={
   toggleWatch(id){const c=locate(id).card;c.watch=!c.watch;commit()},
   labelMenu(id,a){
     const loc=locate(id),b=loc.board||board(),c=loc.card;
-    openPop(a,'Labels',`${b.labels.map(l=>`<div class="lbl-row"><input type="checkbox" data-card-label="${id}:${l.id}" ${c.labels.includes(l.id)?'checked':''} aria-label="${esc(l.name||COLOR_NL[l.color])}"><button class="chip" style="background:var(--lb-${l.color})" data-act="toggleCardLabel" data-id="${id}:${l.id}">${esc(l.name)}</button></div>`).join('')}
+    openPop(a,'Labels',`${b.labels.map(l=>`<div class="lbl-row"><input type="checkbox" data-card-label="${id}:${l.id}" ${c.labels.includes(l.id)?'checked':''} aria-label="${esc(l.name||cname(l.color))}"><button class="chip" style="background:${lb(l.color)};${ink(l.color)}" data-act="toggleCardLabel" data-id="${id}:${l.id}">${esc(l.name)}</button><button class="icon-btn" data-act="labelColorMenu" data-id="${l.id}" aria-label="Kleur van label wijzigen" title="Kleur wijzigen">${ic('pencil',14)}</button></div>`).join('')}
+      <button class="btn sm" data-act="addLabelHere" data-id="${id}">${ic('plus',14)}Nieuw label</button>
       <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Labelnamen wijzig je in het bordmenu (…).</p>`);
   },
   toggleCardLabel(v){const [id,lid]=v.split(':');const c=locate(id).card;c.labels=c.labels.includes(lid)?c.labels.filter(x=>x!==lid):[...c.labels,lid];commit();repop()},
@@ -1009,7 +1070,7 @@ const ACT={
   saveDue(id){const v=$('#dueInput').value;if(!v)return;const c=locate(id).card;c.due=v;log(c,`heeft de vervaldatum ingesteld op ${fmtDue(v)}`);closePop();commit()},
   clearDue(id){const c=locate(id).card;c.due=null;closePop();commit()},
   coverMenu(id,a){const c=locate(id).card;
-    openPop(a,'Omslag',`<div class="swatches">${LABEL_COLORS.map(k=>`<button class="swatch ${c.cover===k?'sel':''}" style="background:var(--lb-${k})" data-act="setCover" data-id="${id}:${k}" aria-label="${COLOR_NL[k]}"></button>`).join('')}</div>
+    openPop(a,'Omslag',`${colorPicker('cover',id,c.cover,LABEL_COLORS)}
       ${c.cover?`<div class="btn-row"><button class="btn sm" data-act="setCover" data-id="${id}:">Omslag verwijderen</button></div>`:''}`)},
   setCover(v){const [id,k]=v.split(':');locate(id).card.cover=k||null;commit();repop()},
   checklistMenu(id,a){openPop(a,'Checklist toevoegen',`<form id="clForm" data-id="${id}"><label class="fl" for="clTitle">Titel</label><input class="field" id="clTitle" value="${locate(id).card.checklists.length?'Checklist':'Actiestappen'}"><div class="btn-row"><button class="btn primary sm" type="submit">Toevoegen</button></div></form>`,p=>{const i=p.querySelector('#clTitle');i.focus();i.select()})},
@@ -1049,7 +1110,7 @@ const ACT={
   templateMenu(listId,a){
     const tpls=S.templates||[];
     const rows=tpls.map(t=>{const n=t.checklists.reduce((s,cl)=>s+cl.items.length,0);
-      return `<div class="tpl-row"><button class="board-pick" data-act="useTemplate" data-id="${t.id}|${listId}"><span class="thumb" style="background:${t.cover?`var(--lb-${t.cover})`:'var(--hover-strong)'};width:8px"></span><span class="grow">${esc(t.title)}</span><span class="tpl-meta">${n?n+' stappen':''}</span></button><button class="pick-split" data-act="editTemplate" data-id="${t.id}" title="Sjabloon aanpassen" aria-label="${esc(t.title)} aanpassen">${ic('pencil',14)}</button></div>`}).join('');
+      return `<div class="tpl-row"><button class="board-pick" data-act="useTemplate" data-id="${t.id}|${listId}"><span class="thumb" style="background:${t.cover?lb(t.cover):'var(--hover-strong)'};width:8px"></span><span class="grow">${esc(t.title)}</span><span class="tpl-meta">${n?n+' stappen':''}</span></button><button class="pick-split" data-act="editTemplate" data-id="${t.id}" title="Sjabloon aanpassen" aria-label="${esc(t.title)} aanpassen">${ic('pencil',14)}</button></div>`}).join('');
     openPop(a,'Sjablonen',`${rows||'<p style="font-size:13px;color:var(--muted);margin:4px 0">Nog geen sjablonen.</p>'}<div class="menu-sep"></div>
       <button class="menu-item" data-act="newTemplate">${ic('plus')}Nieuw sjabloon maken</button>`);
   },
@@ -1154,6 +1215,7 @@ document.addEventListener('submit',e=>{
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.qsToggle){const [clid,iid]=t.dataset.qsToggle.split(':');const it=locate(qsCard).card.checklists.find(x=>x.id===clid).items.find(i=>i.id===iid);it.done=t.checked;save();renderInbox();renderPlanner();renderBoard(true);fillQuickSteps();return}
+  if(t.dataset.colorPick){const [kind,id]=t.dataset.colorPick.split('|');setColor(kind,id,t.value);return}
   if(t.id==='attInput'){const fs=[...t.files];t.value='';if(fs.length)addFiles(modalId,fs);return}
   if(t.dataset.filter){const [set,val]=t.dataset.filter.split(':');t.checked?filter[set].add(val):filter[set].delete(val);renderAll();return}
   if(t.dataset.cardLabel){ACT.toggleCardLabel(t.dataset.cardLabel);return}
@@ -1309,7 +1371,9 @@ function moveDrag(x,y){
   }else{
     const row=p.row;
     const ls=[...row.querySelectorAll(':scope > .list:not(.drag-src)')];
-    let before=null;for(const l of ls){const r=l.getBoundingClientRect();if(x<r.left+r.width/2){before=l;break}}
+    const stacked=row.classList.contains('layout-kolom');
+    let before=null;for(const l of ls){const r=l.getBoundingClientRect();
+      if(stacked?y<r.top+r.height/2:(y<r.top||(y<=r.bottom&&x<r.left+r.width/2))){before=l;break}}
     const tgt=before||row.querySelector(':scope > .add-list');if(p.ph.nextElementSibling!==tgt)row.insertBefore(p.ph,tgt);
   }
 }
@@ -1319,6 +1383,7 @@ function autoScroll(){
   const hit=document.elementFromPoint(x,y);const row=(P.type==='list'?P.row:hit&&hit.closest('.lists'))||P.row;
   const r=row?row.getBoundingClientRect():{top:0,bottom:-1};
   if(row&&y>r.top&&y<r.bottom){if(x>r.right-E)row.scrollLeft+=sp;else if(x<r.left+E)row.scrollLeft-=sp}
+  if(row&&x>r.left&&x<r.right&&row.scrollHeight>row.clientHeight){if(y>r.bottom-E)row.scrollTop+=sp;else if(y<r.top+E)row.scrollTop-=sp}
   if(P.type==='card'&&P.zone){const sc=P.zone.closest('.cards,.panel-body')||P.zone;const zr=sc.getBoundingClientRect();if(y>zr.bottom-E&&y<zr.bottom+20)sc.scrollTop+=sp;else if(y<zr.top+E&&y>zr.top-20)sc.scrollTop-=sp}
   P.raf=requestAnimationFrame(autoScroll);
 }

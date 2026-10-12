@@ -80,6 +80,8 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn.danger{background:#c9372c;color:#fff}
 .btn.sm{height:28px;padding:0 10px}
+.pick-split{width:28px;height:28px;flex:none;border-radius:4px;display:grid;place-items:center;color:var(--muted)}
+.pick-split:hover{background:var(--hover-strong);color:var(--fg)}
 .icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:4px;color:var(--muted)}
 .icon-btn:hover{background:var(--hover)}
 .avatar{width:28px;height:28px;border-radius:50%;background:var(--avatar);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
@@ -100,6 +102,8 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .inbox-zone{padding:8px 0;min-height:60px}
 
 /* Board */
+.boards{flex:1;min-width:0;display:flex;gap:8px}
+.board.active-pane{box-shadow:0 0 0 2px var(--accent)}
 .board{flex:1;min-width:0;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;position:relative;background-size:cover}
 .board-head{display:flex;align-items:center;gap:6px;padding:10px 12px 10px 16px;background:rgba(0,0,0,.24);backdrop-filter:blur(4px);color:#fff;flex-wrap:wrap}
 .board-title{font-size:18px;font-weight:700;padding:2px 8px;border-radius:4px;color:#fff}
@@ -110,6 +114,10 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .bh-btn.on{background:rgba(255,255,255,.85);color:#172b4d}
 .bh-btn .starred{color:#f5cd47;fill:#f5cd47}
 .bh-spacer{flex:1}
+.hide-multi{display:none}
+.autosave-note{font-size:12px;color:var(--muted);align-self:center}
+.boards .board .board-head{flex-wrap:nowrap}
+.board-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .lists{flex:1;display:flex;align-items:flex-start;gap:12px;padding:12px;overflow-x:auto;overflow-y:hidden;min-height:0}
 .list{width:272px;flex:none;background:var(--lbg,var(--list-bg));border-radius:12px;display:flex;flex-direction:column;max-height:100%;box-shadow:0 1px 1px rgba(9,30,66,.25)}
 .list-head{display:flex;align-items:center;gap:2px;padding:8px 6px 4px 12px;cursor:grab;user-select:none;-webkit-user-select:none}
@@ -292,7 +300,8 @@ label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
 
 .only-narrow{display:none}
 @media (max-width:760px){
-  .hide-narrow{display:none!important}.only-narrow{display:inline}
+  .hide-narrow{display:none!important}
+  .boards .board:not(.cur-pane){display:none}.only-narrow{display:inline}
   .work{padding:8px 6px}
   .panel{flex:1;width:auto}
   .logo span,.btn .lbl-txt{display:none}
@@ -318,10 +327,7 @@ label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
   <main class="work" id="work">
     <aside class="panel" id="inboxPanel"></aside>
     <aside class="panel" id="plannerPanel"></aside>
-    <section class="board" id="boardWrap">
-      <div class="board-head" id="boardHead"></div>
-      <div class="lists" id="lists"></div>
-    </section>
+    <div class="boards" id="boards"></div>
   </main>
   <nav class="dock" id="dock"></nav>
 </div>
@@ -370,6 +376,7 @@ const ICONS={
  restore:'<path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4"/>',
  image:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-9 8.5"/>',
  clip:'<path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+ split:'<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M12 4.5v15"/>',
  sort:'<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>'
 };
 const ic=(n,s=16,cls='')=>`<svg class="ic ${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
@@ -405,6 +412,17 @@ function load(){try{const r=localStorage.getItem(LS_KEY);if(r){const s=JSON.pars
 let S=load();
 function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
 const board=()=>S.boards.find(b=>b.id===S.current)||S.boards[0];
+function fixOpen(){
+  if(!S.boards.some(b=>b.id===S.current)) S.current=S.boards[0].id;
+  S.open=(S.open||[]).filter((id,i,a)=>a.indexOf(id)===i&&S.boards.some(b=>b.id===id));
+  if(!S.open.includes(S.current)) S.open.length?S.open[0]=S.current:S.open.push(S.current);
+}
+fixOpen();
+// Show a board in the focused pane; when it is already open in another pane, focus that pane.
+function showBoard(id){
+  if(!S.open.includes(id)){const i=S.open.indexOf(S.current);S.open[i<0?0:i]=id}
+  S.current=id;
+}
 function findList(id){for(const b of S.boards){const l=b.lists.find(l=>l.id===id);if(l)return {list:l,board:b}}return null}
 function locate(id){
   let i=S.inbox.findIndex(c=>c.id===id); if(i>=0) return {card:S.inbox[i],arr:S.inbox,i,list:null,board:null};
@@ -473,27 +491,43 @@ function cardHtml(c,b,opts={}){
 
 /* ---------- render: board ---------- */
 function renderBoard(skipDrawer){
-  const b=board(); const wrap=$('#boardWrap');
-  wrap.hidden=!S.ui.board;
-  wrap.style.background=BGS[b.bg]||b.bg;
-  const fc=filter.labels.size+filter.due.size+filter.status.size;
-  $('#boardHead').innerHTML=`
-    ${editingBoardTitle?`<input class="board-title-input" id="boardTitleInput" value="${esc(b.title)}" aria-label="Bordnaam">`:`<button class="board-title" data-act="editBoardTitle">${esc(b.title)}</button>`}
-    <button class="bh-btn" data-act="toggleStar" aria-label="${b.starred?'Ster verwijderen':'Ster toevoegen'}" title="Bord met ster markeren">${b.starred?'<svg class="ic starred" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.8">'+ICONS.star+'</svg>':ic('star')}</button>
-    <span class="bh-btn hide-narrow" style="cursor:default">${ic('board')}<span>Bord</span></span>
-    <span class="bh-spacer"></span>
-    <button class="bh-btn ${fc?'on':''}" data-act="filterMenu">${ic('filter')}<span>Filter${fc?` (${fc})`:''}</span></button>
-    <span class="avatar hide-narrow" title="Leon Janssen">LE</span>
-    <button class="bh-btn" data-act="openDrawer" aria-label="Bordmenu">${ic('dots')}</button>`;
-  const lists=$('#lists'); const scrolls={};
-  lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z)scrolls[el.dataset.list]=z.scrollTop});
-  lists.innerHTML=b.lists.map(l=>listHtml(l,b)).join('')+`<div class="add-list" id="addList">${addingList?`<form id="addListForm"><input id="addListInput" placeholder="Voer lijstnaam in…" aria-label="Lijstnaam"><div class="composer-row"><button class="btn primary sm" type="submit">Lijst toevoegen</button><button type="button" class="icon-btn" data-act="cancelAddList" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button data-act="addList">${ic('plus')}Voeg een andere lijst toe</button>`}</div>`;
-  lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z&&scrolls[el.dataset.list])z.scrollTop=scrolls[el.dataset.list]});
-  if(editingBoardTitle){const i=$('#boardTitleInput');i.focus();i.select()}
-  if(addingList) $('#addListInput').focus();
-  if(composer&&composer!=='inbox'){const t=document.querySelector(`[data-composer="${composer}"]`);if(t){t.focus();const z=t.closest('.list').querySelector('.cards');}}
+  fixOpen();
+  const host=$('#boards'); host.hidden=!S.ui.board;
+  const multi=S.open.length>1;
+  const keep=new Set(S.open);
+  host.querySelectorAll(':scope > [data-pane]').forEach(el=>{if(!keep.has(el.dataset.pane))el.remove()});
+  S.open.forEach((bid,idx)=>{
+    const b=S.boards.find(x=>x.id===bid);
+    let pane=host.querySelector(`:scope > [data-pane="${bid}"]`);
+    if(!pane){pane=document.createElement('section');pane.className='board';pane.dataset.pane=bid;pane.innerHTML=`<div class="board-head"></div><div class="lists" data-lists="${bid}"></div>`}
+    if(host.children[idx]!==pane) host.insertBefore(pane,host.children[idx]||null);
+    renderPane(pane,b,multi);
+  });
+  if(editingBoardTitle){const i=document.querySelector('[data-board-title-input]');i&&(i.focus(),i.select())}
+  if(addingList){const i=document.querySelector(`[data-add-list-form="${addingList}"] input`);i&&i.focus()}
+  if(composer&&composer!=='inbox'){const t=document.querySelector(`[data-composer="${composer}"]`);t&&t.focus()}
   if(editingListTitle){const i=document.querySelector(`[data-list-title-input]`);if(i){i.focus();i.select()}}
   if(!skipDrawer) renderDrawer();
+}
+function markActivePane(){
+  document.querySelectorAll('#boards > [data-pane]').forEach(el=>{const on=el.dataset.pane===S.current;el.classList.toggle('cur-pane',on);el.classList.toggle('active-pane',on&&S.open.length>1)});
+}
+function renderPane(pane,b,multi){
+  pane.style.background=BGS[b.bg]||b.bg;
+  const fc=filter.labels.size+filter.due.size+filter.status.size;
+  pane.querySelector('.board-head').innerHTML=`
+    ${editingBoardTitle===b.id?`<input class="board-title-input" data-board-title-input="${b.id}" value="${esc(b.title)}" aria-label="Bordnaam">`:`<button class="board-title" data-act="editBoardTitle" data-id="${b.id}">${esc(b.title)}</button>`}
+    <button class="bh-btn" data-act="toggleStar" aria-label="${b.starred?'Ster verwijderen':'Ster toevoegen'}" title="Bord met ster markeren">${b.starred?'<svg class="ic starred" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.8">'+ICONS.star+'</svg>':ic('star')}</button>
+    <span class="bh-spacer"></span>
+    <button class="bh-btn ${fc?'on':''}" data-act="filterMenu" title="Filter">${ic('filter')}<span class="${multi?'hide-multi':''}">Filter${fc?` (${fc})`:''}</span></button>
+    <button class="bh-btn hide-narrow" data-act="splitMenu" title="Nog een bord ernaast openen" aria-label="Nog een bord ernaast openen">${ic('split')}</button>
+    <button class="bh-btn" data-act="openDrawer" aria-label="Bordmenu">${ic('dots')}</button>
+    ${multi?`<button class="bh-btn hide-narrow" data-act="closePane" data-id="${b.id}" aria-label="Dit bord sluiten" title="Sluiten in splitscreen">${ic('x')}</button>`:''}`;
+  const lists=pane.querySelector('.lists'); const scrolls={};
+  lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z)scrolls[el.dataset.list]=z.scrollTop});
+  lists.innerHTML=b.lists.map(l=>listHtml(l,b)).join('')+`<div class="add-list">${addingList===b.id?`<form data-add-list-form="${b.id}"><input placeholder="Voer lijstnaam in…" aria-label="Lijstnaam"><div class="composer-row"><button class="btn primary sm" type="submit">Lijst toevoegen</button><button type="button" class="icon-btn" data-act="cancelAddList" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button data-act="addList" data-id="${b.id}">${ic('plus')}Voeg een andere lijst toe</button>`}</div>`;
+  lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z&&scrolls[el.dataset.list])z.scrollTop=scrolls[el.dataset.list]});
+  markActivePane();
 }
 function listHtml(l,b){
   const vis=l.cards.filter(matches);
@@ -569,7 +603,10 @@ function renderDrawer(){
   let d=$('#drawer');
   if(!drawerOpen){d&&d.remove();return}
   const b=board();
-  if(!d){d=document.createElement('div');d.id='drawer';d.className='drawer';$('#boardWrap').appendChild(d)}
+  const pane=document.querySelector(`#boards > [data-pane="${S.current}"]`);
+  if(d&&d.parentElement!==pane){d.remove();d=null}
+  if(!pane) return;
+  if(!d){d=document.createElement('div');d.id='drawer';d.className='drawer';pane.appendChild(d)}
   d.innerHTML=`<div class="pop-head" style="padding:8px 8px 4px"><span>Menu</span><button class="icon-btn" data-act="closeDrawer" aria-label="Menu sluiten">${ic('x')}</button></div>
   <div class="drawer-body">
     <h4>Achtergrond</h4>
@@ -615,7 +652,7 @@ function renderModal(){
           ${c.watch?`<div><h4>Meldingen</h4><div class="row"><button class="chipbtn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}Volgend</button></div></div>`:''}
         </div>
         <section class="m-sec"><div class="m-sec-head">${ic('desc',20)}<h3>Beschrijving</h3>${c.desc&&!descEditing?`<button class="btn sm" data-act="editDesc">Bewerken</button>`:''}</div>
-          ${descEditing?`<textarea class="desc-edit" id="descInput" aria-label="Beschrijving">${esc(c.desc)}</textarea><div class="btn-row"><button class="btn primary sm" data-act="saveDesc" data-id="${c.id}">Opslaan</button><button class="btn sm" data-act="cancelDesc">Annuleren</button></div>`
+          ${descEditing?`<textarea class="desc-edit" id="descInput" aria-label="Beschrijving">${esc(c.desc)}</textarea><div class="btn-row"><button class="btn primary sm" data-act="cancelDesc">Klaar</button><span class="autosave-note" id="descNote">Wordt automatisch opgeslagen</span></div>`
           :`<div class="desc-view ${c.desc?'filled':''}" data-act="editDesc" role="button" tabindex="0">${c.desc?esc(c.desc):'<span style="color:var(--muted)">Voeg een gedetailleerdere beschrijving toe…</span>'}</div>`}
         </section>
         <section class="m-sec"><div class="m-sec-head">${ic('clip',20)}<h3>Bijlagen</h3><label class="btn sm" for="attInput">Toevoegen</label><input type="file" id="attInput" multiple hidden></div>
@@ -787,21 +824,28 @@ const ACT={
   createBoard(){
     const t=$('#newBoardTitle').value.trim(); if(!t){$('#newBoardTitle').focus();return}
     const bg=popEl.querySelector('[data-bg].sel')?.dataset.bg||'paars';
-    const b=mkBoard(t,bg,['Te doen','Bezig','Klaar']); S.boards.push(b); S.current=b.id; S.ui.board=true; drawerOpen=false; filter={labels:new Set(),due:new Set(),status:new Set()};
+    const b=mkBoard(t,bg,['Te doen','Bezig','Klaar']); S.boards.push(b); showBoard(b.id); S.ui.board=true; drawerOpen=false; filter={labels:new Set(),due:new Set(),status:new Set()};
     closePop(); commit(); toast(`Bord "${t}" gemaakt`);
   },
   newInboxCard(){closePop();S.ui.inbox=true;if(narrow()){S.ui.board=false;S.ui.planner=false}renderAll();$('#inboxAdd')?.focus()},
   switchBoard(id,a){
-    const rows=[...S.boards].sort((x,y)=>(y.starred-x.starred)).map(b=>`<button class="board-pick ${b.id===S.current?'cur':''}" data-act="goBoard" data-id="${b.id}"><span class="thumb" style="background:${BGS[b.bg]||b.bg}"></span><span class="grow">${esc(b.title)}</span>${b.starred?'<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="#f5cd47" stroke="#f5cd47" stroke-width="1.8">'+ICONS.star+'</svg>':''}</button>`).join('');
+    const rows=[...S.boards].sort((x,y)=>(y.starred-x.starred)).map(b=>`<div style="display:flex;align-items:center;gap:4px"><button class="board-pick ${S.open.includes(b.id)?'cur':''}" data-act="goBoard" data-id="${b.id}"><span class="thumb" style="background:${BGS[b.bg]||b.bg}"></span><span class="grow">${esc(b.title)}</span>${b.starred?'<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="#f5cd47" stroke="#f5cd47" stroke-width="1.8">'+ICONS.star+'</svg>':''}</button>${S.open.includes(b.id)||narrow()?'':`<button class="pick-split" data-act="splitBoard" data-id="${b.id}" title="Ernaast openen (splitscreen)" aria-label="${esc(b.title)} ernaast openen">${ic('split')}</button>`}</div>`).join('');
     openPop(a,'Van bord wisselen',`${rows}<div class="menu-sep"></div><form id="quickBoard" style="display:flex;gap:6px"><input class="field" id="quickBoardTitle" placeholder="Nieuw bord…" aria-label="Naam nieuw bord"><button class="btn primary sm" type="submit">Maken</button></form>`);
   },
-  goBoard(id){S.current=id;S.ui.board=true;if(narrow()){S.ui.inbox=false;S.ui.planner=false}drawerOpen=false;composer=null;filter={labels:new Set(),due:new Set(),status:new Set()};closePop();commit()},
+  splitMenu(id,a){
+    const rest=S.boards.filter(b=>!S.open.includes(b.id));
+    openPop(a,'Bord ernaast openen',rest.length?rest.map(b=>`<button class="board-pick" data-act="splitBoard" data-id="${b.id}"><span class="thumb" style="background:${BGS[b.bg]||b.bg}"></span><span class="grow">${esc(b.title)}</span></button>`).join('')
+      :`<p style="font-size:13px;color:var(--muted);margin:4px 0">Alle borden staan al open. Maak een nieuw bord via Aanmaken.</p>`);
+  },
+  splitBoard(id){if(!S.open.includes(id))S.open.push(id);S.current=id;S.ui.board=true;drawerOpen=false;closePop();commit()},
+  closePane(id){S.open=S.open.filter(x=>x!==id);if(S.current===id)S.current=S.open[0];drawerOpen=false;commit()},
+  goBoard(id){showBoard(id);S.ui.board=true;if(narrow()){S.ui.inbox=false;S.ui.planner=false}drawerOpen=false;composer=null;filter={labels:new Set(),due:new Set(),status:new Set()};closePop();commit()},
   togglePanel(id){
     if(narrow()){S.ui={inbox:false,planner:false,board:false};S.ui[id]=true}
     else{S.ui[id]=!S.ui[id];if(!S.ui.inbox&&!S.ui.planner&&!S.ui.board)S.ui.board=true}
     commit();
   },
-  editBoardTitle(){editingBoardTitle=true;renderBoard()},
+  editBoardTitle(id){editingBoardTitle=id;renderBoard()},
   toggleStar(){board().starred=!board().starred;commit()},
   filterMenu(id,a){
     const b=board();const ch=(set,val,label,extra='')=>`<label class="check-row"><input type="checkbox" data-filter="${set}:${val}" ${filter[set].has(val)?'checked':''}>${extra}${label}</label>`;
@@ -822,11 +866,11 @@ const ACT={
   copyBoard(){const b=board();const n=JSON.parse(JSON.stringify(b));n.id=uid();n.title=b.title+' (kopie)';n.starred=false;n.archive={cards:[],lists:[]};
     const map={};n.labels.forEach(l=>{const o=l.id;l.id=uid();map[o]=l.id});
     n.lists.forEach(l=>{l.id=uid();l.cards=l.cards.map(c=>{const x=cloneCard(c);x.labels=x.labels.map(i=>map[i]).filter(Boolean);return x})});
-    S.boards.push(n);S.current=n.id;drawerOpen=false;commit();toast('Bord gekopieerd')},
+    S.boards.push(n);showBoard(n.id);drawerOpen=false;commit();toast('Bord gekopieerd')},
   askDeleteBoard(){deleteConfirm='board';renderDrawer()},
   cancelConfirm(){deleteConfirm=null;renderAll()},
-  deleteBoard(){const id=S.current;S.boards=S.boards.filter(b=>b.id!==id);S.current=S.boards[0].id;drawerOpen=false;deleteConfirm=null;commit();toast('Bord verwijderd')},
-  addList(){addingList=true;renderBoard();const l=$('#lists');l.scrollLeft=l.scrollWidth},
+  deleteBoard(){const id=S.current;S.boards=S.boards.filter(b=>b.id!==id);S.open=S.open.filter(x=>x!==id);S.current=S.open[0]||S.boards[0].id;drawerOpen=false;deleteConfirm=null;commit();toast('Bord verwijderd')},
+  addList(id){addingList=id;renderBoard();const l=document.querySelector(`[data-lists="${id}"]`);l.scrollLeft=l.scrollWidth},
   cancelAddList(){addingList=false;renderBoard()},
   collapse(id){const f=findList(id);f.list.collapsed=!f.list.collapsed;commit()},
   openComposer(id){composer=id;renderBoard();const z=document.querySelector(`[data-list="${id}"] .cards`);z&&(z.scrollTop=z.scrollHeight)},
@@ -943,6 +987,10 @@ document.addEventListener('click',e=>{
   if(card&&!e.target.closest('.modal')){ACT.openCard(card.dataset.card)}
 });
 document.addEventListener('mousedown',e=>{if(e.target.id==='modalBack')ACT.closeModal()});
+document.addEventListener('pointerdown',e=>{
+  const pane=e.target.closest&&e.target.closest('#boards > [data-pane]');
+  if(pane&&pane.dataset.pane!==S.current){S.current=pane.dataset.pane;save();if(drawerOpen){drawerOpen=false;renderDrawer()}markActivePane()}
+},true);
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(popEl){closePop();return}
@@ -958,13 +1006,13 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey){
     if(t.matches('[data-composer],#inboxAdd')){e.preventDefault();t.form.requestSubmit();return}
     if(t.id==='mTitle'){e.preventDefault();t.blur();return}
-    if(t.matches('[data-list-title-input],#boardTitleInput')){e.preventDefault();t.blur();return}
+    if(t.matches('[data-list-title-input],[data-board-title-input]')){e.preventDefault();t.blur();return}
     if(t.matches('[data-ci-edit]')){e.preventDefault();t.blur();return}
     if(t.matches('[data-card]')){e.preventDefault();ACT.openCard(t.dataset.card);return}
     if(t.matches('.desc-view')){e.preventDefault();ACT.editDesc();return}
   }
   if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){
-    if(t.id==='descInput'){e.preventDefault();ACT.saveDesc(modalId)}
+    if(t.id==='descInput'){e.preventDefault();t.blur()}
     if(t.id==='commentInput'){e.preventDefault();t.form.requestSubmit()}
   }
 });
@@ -972,7 +1020,7 @@ document.addEventListener('submit',e=>{
   e.preventDefault();const f=e.target;
   if(f.dataset.composerForm){const id=f.dataset.composerForm;const t=f.querySelector('textarea');const v=t.value.trim();if(!v){t.focus();return}addCardTo(id,v);commit();const z=document.querySelector(`[data-list="${id}"] .cards`);z&&(z.scrollTop=z.scrollHeight);return}
   if(f.id==='inboxForm'){const t=$('#inboxAdd');const v=t.value.trim();if(!v)return;t.value='';addCardTo('inbox',v);commit();$('#inboxAdd').focus();return}
-  if(f.id==='addListForm'){const v=$('#addListInput').value.trim();if(!v){$('#addListInput').focus();return}board().lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=$('#lists');l.scrollLeft=l.scrollWidth;return}
+  if(f.dataset.addListForm){const bid=f.dataset.addListForm;const inp=f.querySelector('input');const v=inp.value.trim();if(!v){inp.focus();return}S.boards.find(b=>b.id===bid).lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=document.querySelector(`[data-lists="${bid}"]`);l.scrollLeft=l.scrollWidth;return}
   if(f.id==='commentForm'){const t=$('#commentInput');const v=t.value.trim();if(!v)return;t.value='';locate(modalId).card.comments.push({id:uid(),text:v,at:Date.now()});commit();return}
   if(f.id==='clForm'){const c=locate(f.dataset.id).card;const t=$('#clTitle').value.trim()||'Checklist';const cl={id:uid(),title:t,items:[]};c.checklists.push(cl);closePop();pendingFocus='ciadd-'+cl.id;commit();return}
   if(f.dataset.ciAdd){const cl=locate(modalId).card.checklists.find(x=>x.id===f.dataset.ciAdd);const i=f.querySelector('input');const v=i.value.trim();if(!v)return;cl.items.push({id:uid(),text:v,done:false});pendingFocus='ciadd-'+cl.id;commit();return}
@@ -991,16 +1039,29 @@ document.addEventListener('focusout',e=>{
   const t=e.target;
   if(t.id==='mTitle'){const c=locate(modalId)?.card;const v=t.value.trim();if(c&&v&&v!==c.title){c.title=v;commit()}else if(c)t.value=c.title;return}
   if(t.matches('[data-list-title-input]')){const f=findList(t.dataset.listTitleInput);const v=t.value.trim();if(f&&v)f.list.title=v;editingListTitle=null;commit();return}
-  if(t.id==='boardTitleInput'){const v=t.value.trim();if(v)board().title=v;editingBoardTitle=false;commit();return}
+  if(t.matches('[data-board-title-input]')){const v=t.value.trim();const b=S.boards.find(x=>x.id===t.dataset.boardTitleInput);if(v&&b)b.title=v;editingBoardTitle=false;commit();return}
   if(t.matches('[data-ci-edit]')){const [clid,iid]=t.dataset.ciEdit.split(':');const c=locate(modalId)?.card;const it=c&&c.checklists.find(x=>x.id===clid)?.items.find(i=>i.id===iid);const v=t.value.trim();if(it&&v)it.text=v;editingItem=null;commit();return}
-  if(t.matches('[data-composer]')){setTimeout(()=>{const r=document.activeElement;if(composer===t.dataset.composer&&!(r&&r.closest&&r.closest(`[data-composer-form="${composer}"]`))&&!t.value.trim()){composer=null;renderBoard()}},120);return}
-  if(t.matches('[data-day-input]')){setTimeout(()=>{if(dayAdding&&!t.value.trim()){dayAdding=null;renderPlanner()}},120)}
+  if(t.id==='descInput'){const c=locate(modalId)?.card;if(c){c.desc=t.value.trim()}setTimeout(()=>{if(descEditing&&document.activeElement!==$('#descInput')){descEditing=false;commit()}},120);return}
+  if(t.matches('[data-composer]')){const lid=t.dataset.composer;setTimeout(()=>{const r=document.activeElement;if(composer!==lid||(r&&r.closest&&r.closest(`[data-composer-form="${lid}"]`)))return;
+    const v=t.value.trim();composer=null;if(v&&findList(lid)){addCardTo(lid,v);commit()}else renderBoard()},120);return}
+  if(t.matches('[data-day-input]')){setTimeout(()=>{if(!dayAdding)return;if(t.value.trim())t.form.requestSubmit();else{dayAdding=null;renderPlanner()}},120)}
 });
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='q'){q=t.value;renderInbox();renderPlanner();renderBoard();return}
   if(t.id==='mTitle'||t.id==='inboxAdd'||t.matches('[data-composer]'))autosize(t);
+  // Edits are kept while typing, so nothing is lost when you click elsewhere or close the app.
+  const v=t.value!=null?t.value.trim():'';
+  if(t.id==='mTitle'){const c=locate(modalId)?.card;if(c&&v){c.title=v;autoSave(true)}return}
+  if(t.id==='descInput'){const c=locate(modalId)?.card;if(c){c.desc=v;autoSave(true);const n=$('#descNote');n&&(n.textContent='Opgeslagen')}return}
+  if(t.matches('[data-list-title-input]')){const f=findList(t.dataset.listTitleInput);if(f&&v){f.list.title=v;autoSave(false)}return}
+  if(t.matches('[data-board-title-input]')){const b=S.boards.find(x=>x.id===t.dataset.boardTitleInput);if(b&&v){b.title=v;autoSave(false)}return}
+  if(t.matches('[data-ci-edit]')){const [clid,iid]=t.dataset.ciEdit.split(':');const c=locate(modalId)?.card;const it=c&&c.checklists.find(x=>x.id===clid)?.items.find(i=>i.id===iid);if(it&&v){it.text=v;autoSave(false)}return}
+  if(t.dataset.labelName){const l=S.boards.flatMap(b=>b.labels).find(x=>x.id===t.dataset.labelName);if(l){l.name=v;autoSave(false)}return}
 });
+let autoTimer=null;
+// Saves right away; refreshes the cards behind an open card a moment after typing stops (never the field being typed in).
+function autoSave(refresh){save();if(!refresh)return;clearTimeout(autoTimer);autoTimer=setTimeout(()=>{renderInbox();renderPlanner();renderBoard(true)},400)}
 window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>{closePop();renderAll()},150)});
 
 /* ---------- files and Outlook mails dropped from outside the app ---------- */
@@ -1043,7 +1104,7 @@ document.addEventListener('pointerdown',e=>{
   const cardEl=t.closest('[data-card]');
   const head=!cardEl&&t.closest('.list-head');
   if(!cardEl&&!head) return;
-  P={x:e.clientX,y:e.clientY,el:cardEl||head.closest('.list'),type:cardEl?'card':'list',pid:e.pointerId,touch:e.pointerType==='touch',started:false};
+  P={x:e.clientX,y:e.clientY,row:t.closest('.lists'),el:cardEl||head.closest('.list'),type:cardEl?'card':'list',pid:e.pointerId,touch:e.pointerType==='touch',started:false};
   P.ready=!P.touch;
   if(P.touch) P.timer=setTimeout(()=>{if(P&&!P.started){P.ready=true;navigator.vibrate&&navigator.vibrate(15);beginDrag(P.x,P.y)}},320);
 });
@@ -1088,17 +1149,18 @@ function moveDrag(x,y){
     if(before){if(p.ph.nextElementSibling!==before)zone.insertBefore(p.ph,before)}else if(zone.lastElementChild!==p.ph)zone.appendChild(p.ph);
     p.zone=zone;
   }else{
-    const row=$('#lists');
+    const row=p.row;
     const ls=[...row.querySelectorAll(':scope > .list:not(.drag-src)')];
     let before=null;for(const l of ls){const r=l.getBoundingClientRect();if(x<r.left+r.width/2){before=l;break}}
-    const tgt=before||$('#addList');if(p.ph.nextElementSibling!==tgt)row.insertBefore(p.ph,tgt);
+    const tgt=before||row.querySelector(':scope > .add-list');if(p.ph.nextElementSibling!==tgt)row.insertBefore(p.ph,tgt);
   }
 }
 function autoScroll(){
   if(!P||!P.started)return;
   const x=P.lx,y=P.ly,E=60,sp=14;
-  const row=$('#lists'),r=row.getBoundingClientRect();
-  if(y>r.top&&y<r.bottom){if(x>r.right-E)row.scrollLeft+=sp;else if(x<r.left+E)row.scrollLeft-=sp}
+  const hit=document.elementFromPoint(x,y);const row=(P.type==='list'?P.row:hit&&hit.closest('.lists'))||P.row;
+  const r=row?row.getBoundingClientRect():{top:0,bottom:-1};
+  if(row&&y>r.top&&y<r.bottom){if(x>r.right-E)row.scrollLeft+=sp;else if(x<r.left+E)row.scrollLeft-=sp}
   if(P.type==='card'&&P.zone){const sc=P.zone.closest('.cards,.panel-body')||P.zone;const zr=sc.getBoundingClientRect();if(y>zr.bottom-E&&y<zr.bottom+20)sc.scrollTop+=sp;else if(y<zr.top+E&&y>zr.top-20)sc.scrollTop-=sp}
   P.raf=requestAnimationFrame(autoScroll);
 }
@@ -1115,7 +1177,7 @@ function endDrag(){
       if(p.el.nextElementSibling!==ph) moveCard(id,drop,nid);
     }
   }else{
-    const b=board();const id=p.el.dataset.list;const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);
+    const b=S.boards.find(x=>x.id===p.row.dataset.lists);const id=p.el.dataset.list;const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);
     const nid=n&&n.dataset&&n.dataset.list;const j=nid?b.lists.findIndex(x=>x.id===nid):-1;
     if(j<0)b.lists.push(l);else b.lists.splice(j,0,l);
   }

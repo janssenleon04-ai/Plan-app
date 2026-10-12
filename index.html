@@ -267,10 +267,14 @@ label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
 .act .bubble{background:var(--input-bg);border-radius:8px;padding:8px 12px;box-shadow:var(--card-shadow);margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere}
 .act .lnk{font-size:12px;color:var(--muted);text-decoration:underline;margin-top:2px}
 .m-side{display:flex;flex-direction:column;gap:6px}
-.side-btn{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:4px;background:var(--hover);font-weight:500;text-align:left;width:100%}
+.side-btn{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 10px;border-radius:4px;background:var(--hover);font-weight:500;text-align:left;width:100%}
 .side-btn:hover{background:var(--hover-strong)}
 .side-btn.danger{background:#c9372c;color:#fff}
 .m-side h4{margin-top:10px}
+.tpl-note{background:var(--accent-soft)!important;color:var(--accent)!important}
+.tpl-row{display:flex;align-items:center;gap:4px}
+.tpl-row .board-pick{flex:1;min-width:0}
+.tpl-meta{font-size:11px;color:var(--muted);flex:none}
 .archived-note{background:var(--warn-bg);color:var(--warn-fg);padding:10px 20px;font-weight:500;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 
 /* Drawer */
@@ -410,6 +414,11 @@ function seed(){
 }
 function load(){try{const r=localStorage.getItem(LS_KEY);if(r){const s=JSON.parse(r);if(s&&s.boards&&s.boards.length)return s}}catch(e){}return seed()}
 let S=load();
+if(!S.templates){S.templates=[exampleTemplate()];}
+function exampleTemplate(){
+  const steps=['Order ontvangen en controleren','Orderbevestiging naar klant sturen','Onderdelen bestellen','Order inplannen','Order leveren of installeren','Factuur versturen'];
+  return mkCard('Order klant',{desc:'Voorbeeldsjabloon. Pas de titel, beschrijving en stappen aan zoals jij werkt.',checklists:[{id:uid(),title:'Actiestappen',items:steps.map(t=>({id:uid(),text:t,done:false}))}],activity:[]});
+}
 function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
 const board=()=>S.boards.find(b=>b.id===S.current)||S.boards[0];
 function fixOpen(){
@@ -426,6 +435,7 @@ function showBoard(id){
 function findList(id){for(const b of S.boards){const l=b.lists.find(l=>l.id===id);if(l)return {list:l,board:b}}return null}
 function locate(id){
   let i=S.inbox.findIndex(c=>c.id===id); if(i>=0) return {card:S.inbox[i],arr:S.inbox,i,list:null,board:null};
+  i=(S.templates||[]).findIndex(c=>c.id===id); if(i>=0) return {card:S.templates[i],arr:S.templates,i,list:null,board:null,template:true};
   for(const b of S.boards){for(const l of b.lists){i=l.cards.findIndex(c=>c.id===id);if(i>=0)return {card:l.cards[i],arr:l.cards,i,list:l,board:b}}
     i=b.archive.cards.findIndex(a=>a.card.id===id); if(i>=0) return {card:b.archive.cards[i].card,arr:null,i,list:null,board:b,archived:true};}
   return null;
@@ -540,7 +550,7 @@ function listHtml(l,b){
       <button class="icon-btn" data-act="listMenu" data-id="${l.id}" aria-label="Lijstacties">${ic('dots')}</button>
     </div>
     <div class="cards zone" data-drop="list:${l.id}">${vis.map(c=>cardHtml(c,b)).join('')}</div>
-    <div class="list-foot">${composer===l.id?`<form class="composer" data-composer-form="${l.id}"><textarea data-composer="${l.id}" placeholder="Voer een titel in of plak een link" aria-label="Kaarttitel"></textarea><div class="composer-row"><button class="btn primary sm" type="submit">Kaart toevoegen</button><button type="button" class="icon-btn" data-act="closeComposer" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button class="add-card-btn" data-act="openComposer" data-id="${l.id}">${ic('plus')}Een kaart toevoegen</button>`}</div>
+    <div class="list-foot">${composer===l.id?`<form class="composer" data-composer-form="${l.id}"><textarea data-composer="${l.id}" placeholder="Voer een titel in of plak een link" aria-label="Kaarttitel"></textarea><div class="composer-row"><button class="btn primary sm" type="submit">Kaart toevoegen</button><button type="button" class="icon-btn" data-act="closeComposer" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<div style="display:flex;gap:2px"><button class="add-card-btn" data-act="openComposer" data-id="${l.id}">${ic('plus')}Een kaart toevoegen</button><button class="icon-btn" data-act="templateMenu" data-id="${l.id}" title="Kaart maken van sjabloon" aria-label="Kaart maken van sjabloon">${ic('cover')}</button></div>`}</div>
   </div>`;
 }
 
@@ -638,11 +648,12 @@ function renderModal(){
   const acts=[...c.comments.map(x=>({...x,kind:'c'})),...(c.activity||[]).map(x=>({...x,kind:'a'}))].sort((a,z)=>z.at-a.at);
   root.innerHTML=`<div class="modal-back" id="modalBack"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(c.title)}">
     ${c.cover?`<div class="m-cover" style="background:var(--lb-${c.cover})"></div>`:''}
+    ${loc.template?`<div class="archived-note tpl-note">${ic('cover')}Dit is een sjabloon. Wijzigingen worden automatisch opgeslagen.<button class="btn primary sm" data-act="useTemplateMenu" data-id="${c.id}">Kaart maken van dit sjabloon</button></div>`:''}
     ${loc.archived?`<div class="archived-note">${ic('archive')}Deze kaart is gearchiveerd.<button class="btn sm" data-act="restoreCard" data-id="${c.id}">Herstellen</button>${deleteConfirm===c.id?`<button class="btn danger sm" data-act="deleteCard" data-id="${c.id}">Ja, definitief verwijderen</button>`:`<button class="btn sm" data-act="askDeleteCard" data-id="${c.id}">Verwijderen</button>`}</div>`:''}
     <button class="icon-btn m-close" data-act="closeModal" aria-label="Sluiten">${ic('x',20)}</button>
-    <div class="m-head"><button class="tick-lg ${c.done?'on':''}" data-act="toggleDone" data-id="${c.id}" aria-label="${c.done?'Markeren als niet voltooid':'Markeren als voltooid'}">${ic(c.done?'circleCheck':'circle',22)}</button>
+    <div class="m-head">${loc.template?`<span class="tick-lg">${ic('cover',22)}</span>`:`<button class="tick-lg ${c.done?'on':''}" data-act="toggleDone" data-id="${c.id}" aria-label="${c.done?'Markeren als niet voltooid':'Markeren als voltooid'}">${ic(c.done?'circleCheck':'circle',22)}</button>`}
       <textarea class="m-title" id="mTitle" rows="1" aria-label="Kaarttitel">${esc(c.title)}</textarea></div>
-    <div class="m-sub">in lijst <button data-act="moveMenu" data-id="${c.id}">${esc(where)}</button>${loc.board?` op ${esc(loc.board.title)}`:''}</div>
+    ${loc.template?`<div class="m-sub">Sjabloon · nieuwe kaarten krijgen deze titel, beschrijving, labels, stappen en omslag</div>`:`<div class="m-sub">in lijst <button data-act="moveMenu" data-id="${c.id}">${esc(where)}</button>${loc.board?` op ${esc(loc.board.title)}`:''}</div>`}
     <div class="m-grid">
       <div class="m-main">
         <div class="m-meta">
@@ -655,36 +666,39 @@ function renderModal(){
           ${descEditing?`<textarea class="desc-edit" id="descInput" aria-label="Beschrijving">${esc(c.desc)}</textarea><div class="btn-row"><button class="btn primary sm" data-act="cancelDesc">Klaar</button><span class="autosave-note" id="descNote">Wordt automatisch opgeslagen</span></div>`
           :`<div class="desc-view ${c.desc?'filled':''}" data-act="editDesc" role="button" tabindex="0">${c.desc?esc(c.desc):'<span style="color:var(--muted)">Voeg een gedetailleerdere beschrijving toe…</span>'}</div>`}
         </section>
-        <section class="m-sec"><div class="m-sec-head">${ic('clip',20)}<h3>Bijlagen</h3><label class="btn sm" for="attInput">Toevoegen</label><input type="file" id="attInput" multiple hidden></div>
-          ${(c.attachments||[]).length?c.attachments.map(attHtml).join(''):''}
-          <div class="att-hint" style="margin-top:6px">Sleep een mail uit Outlook of een bestand hierheen.</div>
-        </section>
         ${c.checklists.map(cl=>{const n=cl.items.length,dn=cl.items.filter(i=>i.done).length,pc=n?Math.round(dn/n*100):0;
           return `<section class="m-sec"><div class="m-sec-head">${ic('checklist',20)}<h3>${esc(cl.title)}</h3><button class="btn sm" data-act="delChecklist" data-id="${cl.id}">Verwijderen</button></div>
           <div class="progress ${n&&dn===n?'full':''}"><span style="width:32px;font-variant-numeric:tabular-nums">${pc}%</span><span class="bar"><i style="width:${pc}%"></i></span></div>
           ${cl.items.map(it=>`<div class="ci ${it.done?'done':''}"><input type="checkbox" ${it.done?'checked':''} data-ci-toggle="${cl.id}:${it.id}" aria-label="${esc(it.text)}">${editingItem===it.id?`<input class="ci-edit" data-ci-edit="${cl.id}:${it.id}" value="${esc(it.text)}" aria-label="Item bewerken">`:`<span class="txt" data-act="editItem" data-id="${it.id}">${esc(it.text)}</span>`}<button class="icon-btn" data-act="delItem" data-id="${cl.id}:${it.id}" aria-label="Item verwijderen">${ic('x',14)}</button></div>`).join('')}
-          <form data-ci-add="${cl.id}" style="margin-top:6px;display:flex;gap:6px"><input class="field" placeholder="Een item toevoegen" aria-label="Checklist-item toevoegen" id="ciadd-${cl.id}"><button class="btn sm" type="submit">Toevoegen</button></form>
+          <form data-ci-add="${cl.id}" style="margin-top:6px;display:flex;gap:6px"><input class="field" placeholder="Een stap toevoegen" aria-label="Stap toevoegen" id="ciadd-${cl.id}"><button class="btn sm" type="submit">Toevoegen</button></form>
           </section>`}).join('')}
-        <section class="m-sec"><div class="m-sec-head">${ic('chat',20)}<h3>Opmerkingen en activiteit</h3></div>
+        ${c.checklists.length?'':`<section class="m-sec"><div class="m-sec-head">${ic('checklist',20)}<h3>Actiestappen</h3></div>
+          <form data-ci-add="new" style="display:flex;gap:6px"><input class="field" placeholder="Een stap toevoegen, bijvoorbeeld: order bevestigen" aria-label="Actiestap toevoegen" id="ciadd-new"><button class="btn sm" type="submit">Toevoegen</button></form></section>`}
+        <section class="m-sec"><div class="m-sec-head">${ic('clip',20)}<h3>Bijlagen</h3><label class="btn sm" for="attInput">Toevoegen</label><input type="file" id="attInput" multiple hidden></div>
+          ${(c.attachments||[]).length?c.attachments.map(attHtml).join(''):''}
+          <div class="att-hint" style="margin-top:6px">Sleep een mail uit Outlook of een bestand hierheen.</div>
+        </section>
+        ${loc.template?'':`<section class="m-sec"><div class="m-sec-head">${ic('chat',20)}<h3>Opmerkingen en activiteit</h3></div>
           <form class="comment-box" id="commentForm"><span class="avatar">LE</span><textarea id="commentInput" placeholder="Schrijf een opmerking…" aria-label="Opmerking">${esc(commentDraft)}</textarea><button class="btn primary sm" type="submit" style="align-self:flex-start">Opslaan</button></form>
           ${acts.map(a=>a.kind==='c'?`<div class="act"><span class="avatar">LE</span><div style="flex:1;min-width:0"><span class="who">Leon Janssen</span> <span class="when">${fmtTime(a.at)}</span><div class="bubble">${esc(a.text)}</div><button class="lnk" data-act="delComment" data-id="${a.id}">Verwijderen</button></div></div>`
             :`<div class="act"><span class="avatar">LE</span><div><span class="who">Leon Janssen</span> ${esc(a.text)}<div class="when">${fmtTime(a.at)}</div></div></div>`).join('')}
-        </section>
+        </section>`}
       </div>
       <div class="m-side">
         <h4>Toevoegen aan kaart</h4>
         <button class="side-btn" data-act="toggleMember" data-id="${c.id}">${ic('user')}${c.members.length?'Verlaten':'Deelnemen'}</button>
         <button class="side-btn" data-act="labelMenu" data-id="${c.id}">${ic('tag')}Labels</button>
-        <button class="side-btn" data-act="checklistMenu" data-id="${c.id}">${ic('checklist')}Checklist</button>
-        <button class="side-btn" data-act="dateMenu" data-id="${c.id}">${ic('clock')}Datums</button>
+        <button class="side-btn" data-act="checklistMenu" data-id="${c.id}">${ic('checklist')}${c.checklists.length?'Extra checklist':'Actiestappen'}</button>
+        ${loc.template?'':`<button class="side-btn" data-act="dateMenu" data-id="${c.id}">${ic('clock')}Datums</button>`}
         <label class="side-btn" for="attInput" style="cursor:pointer">${ic('clip')}Bijlage</label>
         <button class="side-btn" data-act="coverMenu" data-id="${c.id}">${ic('image')}Omslag</button>
         <h4>Acties</h4>
-        ${loc.archived?'':`<button class="side-btn" data-act="moveMenu" data-id="${c.id}">${ic('move')}Verplaatsen</button>`}
+        ${loc.archived||loc.template?'':`<button class="side-btn" data-act="moveMenu" data-id="${c.id}">${ic('move')}Verplaatsen</button>`}
+        ${loc.template?'':`<button class="side-btn" data-act="saveAsTemplate" data-id="${c.id}">${ic('cover')}Opslaan als sjabloon</button>`}
         <button class="side-btn" data-act="copyCard" data-id="${c.id}">${ic('copy')}Kopiëren</button>
-        <button class="side-btn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}${c.watch?'Niet meer volgen':'Volgen'}</button>
-        ${loc.archived?'':`<button class="side-btn" data-act="archiveCard" data-id="${c.id}">${ic('archive')}Archiveren</button>`}
-        ${deleteConfirm===c.id?`<button class="side-btn danger" data-act="deleteCard" data-id="${c.id}">${ic('trash')}Zeker? Verwijderen</button>`:`<button class="side-btn" data-act="askDeleteCard" data-id="${c.id}">${ic('trash')}Verwijderen</button>`}
+        ${loc.template?'':`<button class="side-btn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}${c.watch?'Niet meer volgen':'Volgen'}</button>`}
+        ${loc.archived||loc.template?'':`<button class="side-btn" data-act="archiveCard" data-id="${c.id}">${ic('archive')}Archiveren</button>`}
+        ${deleteConfirm===c.id?`<button class="side-btn danger" data-act="deleteCard" data-id="${c.id}">${ic('trash')}Zeker? Verwijderen</button>`:`<button class="side-btn" data-act="askDeleteCard" data-id="${c.id}">${ic('trash')}${loc.template?'Sjabloon verwijderen':'Verwijderen'}</button>`}
       </div>
     </div></div></div>`;
   const back=$('#modalBack'); back.scrollTop=keepScroll;
@@ -744,7 +758,7 @@ async function addFiles(cardId,files){
   if(n){commit();toast(n===1?'Bijlage toegevoegd':`${n} bijlagen toegevoegd`)}
 }
 async function titleFromFiles(files){const f=files[0];const m=await mailInfo(f);return m?m.subject:f.name.replace(/\.[^.]+$/,'')}
-function attRefs(id){let n=0;const scan=c=>(c.attachments||[]).forEach(a=>a.id===id&&n++);S.inbox.forEach(scan);S.boards.forEach(b=>{b.lists.forEach(l=>l.cards.forEach(scan));b.archive.lists.forEach(l=>l.cards.forEach(scan));b.archive.cards.forEach(a=>scan(a.card))});return n}
+function attRefs(id){let n=0;const scan=c=>(c.attachments||[]).forEach(a=>a.id===id&&n++);S.inbox.forEach(scan);(S.templates||[]).forEach(scan);S.boards.forEach(b=>{b.lists.forEach(l=>l.cards.forEach(scan));b.archive.lists.forEach(l=>l.cards.forEach(scan));b.archive.cards.forEach(a=>scan(a.card))});return n}
 function dropBlobs(card){(card.attachments||[]).forEach(a=>{if(!attRefs(a.id))FILES.del(a.id).catch(()=>{})})}
 
 /* ---------- popovers ---------- */
@@ -818,7 +832,8 @@ const ACT={
       <label class="fl">Achtergrond</label><div class="swatches" id="newBgPick">${Object.keys(BGS).slice(0,10).map((k,i)=>`<button class="swatch ${i===0?'sel':''}" data-bg="${k}" style="background:${BGS[k]}" aria-label="${k}"></button>`).join('')}</div>
       <div class="btn-row"><button class="btn primary sm" data-act="createBoard">Bord maken</button></div>
       <div class="menu-sep"></div>
-      <button class="menu-item" data-act="newInboxCard">${ic('inbox')}Kaart in Inbox maken</button>`,p=>{p.querySelector('#newBoardTitle').focus();
+      <button class="menu-item" data-act="newInboxCard">${ic('inbox')}Kaart in Inbox maken</button>
+      <button class="menu-item" data-act="manageTemplates">${ic('cover')}Sjablonen</button>`,p=>{p.querySelector('#newBoardTitle').focus();
       p.querySelector('#newBgPick').addEventListener('click',e=>{const s=e.target.closest('[data-bg]');if(!s)return;p.querySelectorAll('[data-bg]').forEach(x=>x.classList.toggle('sel',x===s))})});
   },
   createBoard(){
@@ -928,7 +943,7 @@ const ACT={
     openPop(a,'Omslag',`<div class="swatches">${LABEL_COLORS.map(k=>`<button class="swatch ${c.cover===k?'sel':''}" style="background:var(--lb-${k})" data-act="setCover" data-id="${id}:${k}" aria-label="${COLOR_NL[k]}"></button>`).join('')}</div>
       ${c.cover?`<div class="btn-row"><button class="btn sm" data-act="setCover" data-id="${id}:">Omslag verwijderen</button></div>`:''}`)},
   setCover(v){const [id,k]=v.split(':');locate(id).card.cover=k||null;commit();repop()},
-  checklistMenu(id,a){openPop(a,'Checklist toevoegen',`<form id="clForm" data-id="${id}"><label class="fl" for="clTitle">Titel</label><input class="field" id="clTitle" value="Checklist"><div class="btn-row"><button class="btn primary sm" type="submit">Toevoegen</button></div></form>`,p=>{const i=p.querySelector('#clTitle');i.focus();i.select()})},
+  checklistMenu(id,a){openPop(a,'Checklist toevoegen',`<form id="clForm" data-id="${id}"><label class="fl" for="clTitle">Titel</label><input class="field" id="clTitle" value="${locate(id).card.checklists.length?'Checklist':'Actiestappen'}"><div class="btn-row"><button class="btn primary sm" type="submit">Toevoegen</button></div></form>`,p=>{const i=p.querySelector('#clTitle');i.focus();i.select()})},
   delChecklist(clid){const c=locate(modalId).card;c.checklists=c.checklists.filter(x=>x.id!==clid);commit()},
   editItem(id){editingItem=id;renderModal()},
   delItem(v){const [clid,iid]=v.split(':');const cl=locate(modalId).card.checklists.find(x=>x.id===clid);cl.items=cl.items.filter(i=>i.id!==iid);commit()},
@@ -962,6 +977,36 @@ const ACT={
     setTimeout(()=>URL.revokeObjectURL(url),60000);
   },
   delAtt(id){const c=locate(modalId).card;const a=c.attachments.find(x=>x.id===id);c.attachments=c.attachments.filter(x=>x.id!==id);if(!attRefs(id))FILES.del(id).catch(()=>{});log(c,`heeft de bijlage ${a.mail?a.mail.subject:a.name} verwijderd`);commit()},
+  templateMenu(listId,a){
+    const tpls=S.templates||[];
+    const rows=tpls.map(t=>{const n=t.checklists.reduce((s,cl)=>s+cl.items.length,0);
+      return `<div class="tpl-row"><button class="board-pick" data-act="useTemplate" data-id="${t.id}|${listId}"><span class="thumb" style="background:${t.cover?`var(--lb-${t.cover})`:'var(--hover-strong)'};width:8px"></span><span class="grow">${esc(t.title)}</span><span class="tpl-meta">${n?n+' stappen':''}</span></button><button class="pick-split" data-act="editTemplate" data-id="${t.id}" title="Sjabloon aanpassen" aria-label="${esc(t.title)} aanpassen">${ic('pencil',14)}</button></div>`}).join('');
+    openPop(a,'Sjablonen',`${rows||'<p style="font-size:13px;color:var(--muted);margin:4px 0">Nog geen sjablonen.</p>'}<div class="menu-sep"></div>
+      <button class="menu-item" data-act="newTemplate">${ic('plus')}Nieuw sjabloon maken</button>`);
+  },
+  useTemplateMenu(id,a){
+    const opts=S.open.map(bid=>S.boards.find(b=>b.id===bid)).flatMap(b=>b.lists.map(l=>`<option value="${l.id}">${esc(b.title)} · ${esc(l.title)}</option>`)).join('');
+    openPop(a,'Kaart maken',`<label class="fl" for="tplTarget">In lijst</label><select class="field" id="tplTarget"><option value="inbox">Inbox</option>${opts}</select>
+      <div class="btn-row"><button class="btn primary sm" data-act="useTemplateTo" data-id="${id}">Kaart maken</button></div>`);
+  },
+  useTemplateTo(id){ACT.useTemplate(id+'|'+$('#tplTarget').value)},
+  useTemplate(v){
+    const [tid,target]=v.split('|');const t=S.templates.find(x=>x.id===tid);if(!t)return;
+    const n=cloneCard(t);n.done=false;n.created=Date.now();n.checklists.forEach(cl=>cl.items.forEach(i=>i.done=false));
+    n.activity=[{text:`heeft deze kaart gemaakt van sjabloon ${t.title}`,at:Date.now()}];
+    // labels belong to a board: match by colour and name on the target board, or add the label there
+    const f=target==='inbox'?null:findList(target);const b=f?f.board:board();
+    n.labels=t.labels.map(id=>{const src=labelOf(null,id);if(!src)return null;let l=b.labels.find(x=>x.color===src.color&&x.name===src.name);if(!l){l={id:uid(),color:src.color,name:src.name};b.labels.push(l)}return l.id}).filter(Boolean);
+    if(f) f.list.cards.push(n); else S.inbox.push(n);
+    closePop();modalId=n.id;descEditing=false;pendingFocus='mTitle';commit();
+    const mt=$('#mTitle');if(mt){mt.focus();mt.select()}
+    toast(`Kaart gemaakt van sjabloon "${t.title}"`);
+  },
+  editTemplate(id){closePop();ACT.openCard(id)},
+  newTemplate(){const t=mkCard('Nieuw sjabloon',{activity:[]});S.templates.push(t);closePop();modalId=t.id;commit();const mt=$('#mTitle');if(mt){mt.focus();mt.select()}},
+  saveAsTemplate(id){const c=locate(id).card;const t=cloneCard(c);t.done=false;t.due=null;t.watch=false;t.comments=[];t.activity=[];t.checklists.forEach(cl=>cl.items.forEach(i=>i.done=false));
+    S.templates.push(t);save();toast(`Sjabloon "${t.title}" opgeslagen`);ACT.openCard(t.id)},
+  manageTemplates(){ACT.templateMenu(board().lists[0]?.id||'inbox',document.querySelector('.top [data-act=createMenu]'))},
   weekPrev(){weekStart.setDate(weekStart.getDate()-7);renderPlanner()},
   weekNext(){weekStart.setDate(weekStart.getDate()+7);renderPlanner()},
   weekToday(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));weekStart=d;renderPlanner()},
@@ -1022,7 +1067,8 @@ document.addEventListener('submit',e=>{
   if(f.id==='inboxForm'){const t=$('#inboxAdd');const v=t.value.trim();if(!v)return;t.value='';addCardTo('inbox',v);commit();$('#inboxAdd').focus();return}
   if(f.dataset.addListForm){const bid=f.dataset.addListForm;const inp=f.querySelector('input');const v=inp.value.trim();if(!v){inp.focus();return}S.boards.find(b=>b.id===bid).lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=document.querySelector(`[data-lists="${bid}"]`);l.scrollLeft=l.scrollWidth;return}
   if(f.id==='commentForm'){const t=$('#commentInput');const v=t.value.trim();if(!v)return;t.value='';locate(modalId).card.comments.push({id:uid(),text:v,at:Date.now()});commit();return}
-  if(f.id==='clForm'){const c=locate(f.dataset.id).card;const t=$('#clTitle').value.trim()||'Checklist';const cl={id:uid(),title:t,items:[]};c.checklists.push(cl);closePop();pendingFocus='ciadd-'+cl.id;commit();return}
+  if(f.id==='clForm'){const c=locate(f.dataset.id).card;const t=$('#clTitle').value.trim()||'Actiestappen';const cl={id:uid(),title:t,items:[]};c.checklists.push(cl);closePop();pendingFocus='ciadd-'+cl.id;commit();return}
+  if(f.dataset.ciAdd==='new'){const v=f.querySelector('input').value.trim();if(!v)return;const cl={id:uid(),title:'Actiestappen',items:[{id:uid(),text:v,done:false}]};locate(modalId).card.checklists.push(cl);pendingFocus='ciadd-'+cl.id;commit();return}
   if(f.dataset.ciAdd){const cl=locate(modalId).card.checklists.find(x=>x.id===f.dataset.ciAdd);const i=f.querySelector('input');const v=i.value.trim();if(!v)return;cl.items.push({id:uid(),text:v,done:false});pendingFocus='ciadd-'+cl.id;commit();return}
   if(f.id==='quickBoard'){const v=$('#quickBoardTitle').value.trim();if(!v)return;const b=mkBoard(v,'oceaan',['Te doen','Bezig','Klaar']);S.boards.push(b);closePop();ACT.goBoard(b.id);return}
   if(f.dataset.dayForm){const k=f.dataset.dayForm;const v=f.querySelector('input').value.trim();if(!v)return;addCardTo('inbox',v,{due:k});dayAdding=null;commit();toast('Kaart toegevoegd aan je Inbox');return}
@@ -1041,6 +1087,7 @@ document.addEventListener('focusout',e=>{
   if(t.matches('[data-list-title-input]')){const f=findList(t.dataset.listTitleInput);const v=t.value.trim();if(f&&v)f.list.title=v;editingListTitle=null;commit();return}
   if(t.matches('[data-board-title-input]')){const v=t.value.trim();const b=S.boards.find(x=>x.id===t.dataset.boardTitleInput);if(v&&b)b.title=v;editingBoardTitle=false;commit();return}
   if(t.matches('[data-ci-edit]')){const [clid,iid]=t.dataset.ciEdit.split(':');const c=locate(modalId)?.card;const it=c&&c.checklists.find(x=>x.id===clid)?.items.find(i=>i.id===iid);const v=t.value.trim();if(it&&v)it.text=v;editingItem=null;commit();return}
+  if(t.id&&t.id.startsWith('ciadd-')&&t.value.trim()){const f=t.form;setTimeout(()=>{if(document.body.contains(f)&&document.activeElement!==t&&!f.contains(document.activeElement))f.requestSubmit()},120);return}
   if(t.id==='descInput'){const c=locate(modalId)?.card;if(c){c.desc=t.value.trim()}setTimeout(()=>{if(descEditing&&document.activeElement!==$('#descInput')){descEditing=false;commit()}},120);return}
   if(t.matches('[data-composer]')){const lid=t.dataset.composer;setTimeout(()=>{const r=document.activeElement;if(composer!==lid||(r&&r.closest&&r.closest(`[data-composer-form="${lid}"]`)))return;
     const v=t.value.trim();composer=null;if(v&&findList(lid)){addCardTo(lid,v);commit()}else renderBoard()},120);return}

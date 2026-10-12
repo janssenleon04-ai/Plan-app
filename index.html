@@ -87,6 +87,12 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .avatar{width:28px;height:28px;border-radius:50%;background:var(--avatar);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
 .avatar.sm{width:24px;height:24px;font-size:10px}
 
+.grip{flex:none;display:grid;place-items:center;width:14px;height:20px;cursor:grab;color:var(--muted);opacity:.35;touch-action:none;border-radius:3px}
+.ci:hover .grip,.qs-row:hover .grip,.grip:focus-visible{opacity:1}
+.grip:hover{background:var(--hover-strong)}
+.sorting{background:var(--card-bg)!important;box-shadow:var(--shadow-lg);position:relative;z-index:2}
+body.sorting-steps,body.sorting-steps *{cursor:grabbing!important;user-select:none}
+
 /* Archive box */
 .archive-box{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:6px;border:1px dashed var(--border);color:var(--muted);font-weight:500;transition:background .15s,transform .15s}
 .archive-box:hover{background:var(--hover);color:var(--fg)}
@@ -707,7 +713,7 @@ function renderModal(){
         ${c.checklists.map(cl=>{const n=cl.items.length,dn=cl.items.filter(i=>i.done).length,pc=n?Math.round(dn/n*100):0;
           return `<section class="m-sec"><div class="m-sec-head">${ic('checklist',20)}<h3>${esc(cl.title)}</h3><button class="btn sm" data-act="delChecklist" data-id="${cl.id}">Verwijderen</button></div>
           <div class="progress ${n&&dn===n?'full':''}"><span style="width:32px;font-variant-numeric:tabular-nums">${pc}%</span><span class="bar"><i style="width:${pc}%"></i></span></div>
-          ${cl.items.map(it=>`<div class="ci ${it.done?'done':''}"><input type="checkbox" ${it.done?'checked':''} data-ci-toggle="${cl.id}:${it.id}" aria-label="${esc(it.text)}">${editingItem===it.id?`<input class="ci-edit" data-ci-edit="${cl.id}:${it.id}" value="${esc(it.text)}" aria-label="Item bewerken">`:`<span class="txt" data-act="editItem" data-id="${it.id}">${esc(it.text)}</span>`}<button class="icon-btn" data-act="delItem" data-id="${cl.id}:${it.id}" aria-label="Item verwijderen">${ic('x',14)}</button></div>`).join('')}
+          <div data-sort="${cl.id}">${cl.items.map(it=>`<div class="ci ${it.done?'done':''}" data-item="${cl.id}:${it.id}"><span class="grip" data-grip title="Sleep om de volgorde te wijzigen" aria-hidden="true"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="7" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/></svg></span><input type="checkbox" ${it.done?'checked':''} data-ci-toggle="${cl.id}:${it.id}" aria-label="${esc(it.text)}">${editingItem===it.id?`<input class="ci-edit" data-ci-edit="${cl.id}:${it.id}" value="${esc(it.text)}" aria-label="Item bewerken">`:`<span class="txt" data-act="editItem" data-id="${it.id}">${esc(it.text)}</span>`}<button class="icon-btn" data-act="delItem" data-id="${cl.id}:${it.id}" aria-label="Item verwijderen">${ic('x',14)}</button></div>`).join('')}</div>
           <form data-ci-add="${cl.id}" style="margin-top:6px;display:flex;gap:6px"><input class="field" placeholder="Een stap toevoegen" aria-label="Stap toevoegen" id="ciadd-${cl.id}"><button class="btn sm" type="submit">Toevoegen</button></form>
           </section>`}).join('')}
         ${c.checklists.length?'':`<section class="m-sec"><div class="m-sec-head">${ic('checklist',20)}<h3>Actiestappen</h3></div>
@@ -823,7 +829,7 @@ function fillQuickSteps(){
   const dn=items.filter(x=>x.it.done).length,pc=items.length?Math.round(dn/items.length*100):0;
   body.innerHTML=`<div style="font-weight:600;margin:2px 0 8px;overflow-wrap:anywhere">${esc(c.title)}</div>
     ${items.length?`<div class="progress ${dn===items.length?'full':''}"><span style="width:32px">${pc}%</span><span class="bar"><i style="width:${pc}%"></i></span></div>`:''}
-    ${items.map(({cl,it})=>`<label class="qs-row ${it.done?'done':''}"><input type="checkbox" data-qs-toggle="${cl.id}:${it.id}" ${it.done?'checked':''}><span>${esc(it.text)}</span><button type="button" class="icon-btn" data-act="qsDel" data-id="${cl.id}:${it.id}" aria-label="Stap verwijderen">${ic('x',12)}</button></label>`).join('')}
+    ${c.checklists.map(cl=>`<div data-sort="${cl.id}">${cl.items.map(it=>`<label class="qs-row ${it.done?'done':''}" data-item="${cl.id}:${it.id}"><span class="grip" data-grip title="Sleep om de volgorde te wijzigen" aria-hidden="true"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="7" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/></svg></span><input type="checkbox" data-qs-toggle="${cl.id}:${it.id}" ${it.done?'checked':''}><span>${esc(it.text)}</span><button type="button" class="icon-btn" data-act="qsDel" data-id="${cl.id}:${it.id}" aria-label="Stap verwijderen">${ic('x',12)}</button></label>`).join('')}</div>`).join('')}
     <form id="qsForm" style="display:flex;gap:6px;margin-top:8px"><input class="field" id="qsInput" placeholder="Een stap toevoegen" aria-label="Stap toevoegen" autocomplete="off" value="${esc(draft)}"><button class="btn sm" type="submit">Toevoegen</button></form>`;
 }
 function addQuickStep(text){
@@ -1177,6 +1183,35 @@ let autoTimer=null;
 // Saves right away; refreshes the cards behind an open card a moment after typing stops (never the field being typed in).
 function autoSave(refresh){save();if(!refresh)return;clearTimeout(autoTimer);autoTimer=setTimeout(()=>{renderInbox();renderPlanner();renderBoard(true)},400)}
 window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>{closePop();renderAll()},150)});
+
+/* ---------- reorder action steps by dragging the grip ---------- */
+let SORT=null;
+document.addEventListener('pointerdown',e=>{
+  const g=e.target.closest&&e.target.closest('[data-grip]');if(!g||e.button!==0)return;
+  e.preventDefault();e.stopPropagation();
+  const row=g.closest('[data-item]');const cardId=row.closest('.pop')?qsCard:modalId;
+  SORT={row,box:row.parentElement,cardId,pid:e.pointerId};
+  row.classList.add('sorting');document.body.classList.add('sorting-steps');
+},true);
+document.addEventListener('pointermove',e=>{
+  if(!SORT||e.pointerId!==SORT.pid)return;e.preventDefault();
+  const sibs=[...SORT.box.querySelectorAll(':scope > [data-item]')].filter(r=>r!==SORT.row);
+  let before=null;for(const r of sibs){const b=r.getBoundingClientRect();if(e.clientY<b.top+b.height/2){before=r;break}}
+  if(before){if(SORT.row.nextElementSibling!==before)SORT.box.insertBefore(SORT.row,before)}
+  else if(sibs.length&&sibs[sibs.length-1].nextElementSibling!==SORT.row)sibs[sibs.length-1].after(SORT.row);
+});
+function endSort(){
+  const s=SORT;SORT=null;document.body.classList.remove('sorting-steps');s.row.classList.remove('sorting');
+  const loc=locate(s.cardId);if(!loc)return;
+  const cl=loc.card.checklists.find(x=>x.id===s.box.dataset.sort);if(!cl)return;
+  const order=[...s.box.querySelectorAll(':scope > [data-item]')].map(r=>r.dataset.item.split(':')[1]);
+  cl.items.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
+  save();renderInbox();renderPlanner();renderBoard(true);
+  if(s.row.closest('.pop'))fillQuickSteps();else renderModal();
+}
+document.addEventListener('pointerup',e=>{if(SORT&&e.pointerId===SORT.pid)endSort()});
+document.addEventListener('pointercancel',e=>{if(SORT&&e.pointerId===SORT.pid)endSort()});
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-grip]'))e.preventDefault()},true);
 
 /* ---------- files and Outlook mails dropped from outside the app ---------- */
 const hasFiles=e=>e.dataTransfer&&[...e.dataTransfer.types].includes('Files');

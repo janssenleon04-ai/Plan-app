@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b4cbe">
+<meta name="description" content="Je borden, lijsten en kaarten om je werk te plannen.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planbord">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>[hidden]{display:none!important}body{margin:0}:root{padding-top:env(safe-area-inset-top,0px)}</style>
+</head>
+<body>
+<title>Planbord</title>
+<style>
+/* Layout: topbar, then a work area with optional side panels (Inbox, Planner) next to a horizontally scrolling board; dock pinned at the bottom. */
+:root{
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, "Helvetica Neue", Arial, sans-serif;
+  --bg:#ffffff; --fg:#172b4d; --muted:#626f86; --subtle:#8590a2;
+  --top-bg:#ffffff; --border:#dcdfe4; --hover:rgba(9,30,66,.08); --hover-strong:rgba(9,30,66,.14);
+  --accent:#0c66e4; --accent-fg:#ffffff; --accent-soft:#e9f2ff;
+  --panel-bg:linear-gradient(180deg,#e9f2ff 0%,#f4f0ff 100%); --panel-solid:#eef2fb;
+  --list-bg:#f1f2f4; --card-bg:#ffffff; --card-shadow:0 1px 1px rgba(9,30,66,.25),0 0 1px rgba(9,30,66,.31);
+  --modal-bg:#ffffff; --pop-bg:#ffffff; --input-bg:#ffffff; --field-bg:#f7f8f9;
+  --shadow-lg:0 8px 12px rgba(9,30,66,.15),0 0 1px rgba(9,30,66,.31);
+  --ok:#1f845a; --ok-bg:#dcfff1; --warn-bg:#f8e6a0; --warn-fg:#533f04; --late-bg:#ffd5d2; --late-fg:#ae2e24;
+  --lc-none:var(--list-bg); --lc-yellow:#f8e6a0; --lc-green:#baf3db; --lc-blue:#cce0ff; --lc-purple:#dfd8fd; --lc-red:#ffd5d2; --lc-orange:#fedec8; --lc-teal:#c6edfb; --lc-pink:#fdd0ec;
+  --lb-green:#4bce97; --lb-yellow:#f5cd47; --lb-orange:#fea362; --lb-red:#f87168; --lb-purple:#9f8fef; --lb-blue:#579dff; --lb-sky:#6cc3e0; --lb-pink:#e774bb;
+  --lb-fg:#172b4d; --avatar:#0c66e4;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1d2125; --fg:#b6c2cf; --muted:#9fadbc; --subtle:#8c9bab;
+  --top-bg:#1d2125; --border:#38414a; --hover:rgba(255,255,255,.08); --hover-strong:rgba(255,255,255,.14);
+  --accent:#579dff; --accent-fg:#1d2125; --accent-soft:#1c2b41;
+  --panel-bg:linear-gradient(180deg,#1c2b41 0%,#231f3a 100%); --panel-solid:#1f2a3a;
+  --list-bg:#101204; --card-bg:#22272b; --card-shadow:0 1px 1px rgba(0,0,0,.5),0 0 1px rgba(0,0,0,.5);
+  --modal-bg:#323940; --pop-bg:#282e33; --input-bg:#22272b; --field-bg:#2c333a;
+  --shadow-lg:0 8px 12px rgba(0,0,0,.4),0 0 1px rgba(0,0,0,.5);
+  --ok:#4bce97; --ok-bg:#164b35; --warn-bg:#533f04; --warn-fg:#f8e6a0; --late-bg:#5d1f1a; --late-fg:#ffd5d2;
+  --lc-yellow:#4a3c0b; --lc-green:#164b35; --lc-blue:#09326c; --lc-purple:#352c63; --lc-red:#5d1f1a; --lc-orange:#5f3811; --lc-teal:#164555; --lc-pink:#50253f;
+  --lb-fg:#1d2125; --avatar:#579dff; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1d2125; --fg:#b6c2cf; --muted:#9fadbc; --subtle:#8c9bab;
+  --top-bg:#1d2125; --border:#38414a; --hover:rgba(255,255,255,.08); --hover-strong:rgba(255,255,255,.14);
+  --accent:#579dff; --accent-fg:#1d2125; --accent-soft:#1c2b41;
+  --panel-bg:linear-gradient(180deg,#1c2b41 0%,#231f3a 100%); --panel-solid:#1f2a3a;
+  --list-bg:#101204; --card-bg:#22272b; --card-shadow:0 1px 1px rgba(0,0,0,.5),0 0 1px rgba(0,0,0,.5);
+  --modal-bg:#323940; --pop-bg:#282e33; --input-bg:#22272b; --field-bg:#2c333a;
+  --shadow-lg:0 8px 12px rgba(0,0,0,.4),0 0 1px rgba(0,0,0,.5);
+  --ok:#4bce97; --ok-bg:#164b35; --warn-bg:#533f04; --warn-fg:#f8e6a0; --late-bg:#5d1f1a; --late-fg:#ffd5d2;
+  --lc-yellow:#4a3c0b; --lc-green:#164b35; --lc-blue:#09326c; --lc-purple:#352c63; --lc-red:#5d1f1a; --lc-orange:#5f3811; --lc-teal:#164555; --lc-pink:#50253f;
+  --lb-fg:#1d2125; --avatar:#579dff; color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.43;overflow:hidden}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,textarea,select{font:inherit;color:var(--fg)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ic{flex:none;display:block}
+#app{height:100%;display:flex;flex-direction:column}
+
+/* Topbar */
+.top{display:flex;align-items:center;gap:12px;padding:6px 12px;background:var(--top-bg);border-bottom:1px solid var(--border);flex:none}
+.logo{display:flex;align-items:center;gap:6px;font-weight:700;font-size:16px;color:var(--muted);padding:4px 6px;border-radius:4px}
+.logo-mark{width:22px;height:22px;border-radius:4px;background:var(--accent);display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:4px}
+.logo-mark i{background:var(--accent-fg);border-radius:1px}
+.logo-mark i:last-child{height:60%}
+.search{flex:1;max-width:780px;margin-inline:auto;position:relative;min-width:0}
+.search input{width:100%;height:32px;border:1px solid var(--border);border-radius:6px;padding:0 10px 0 32px;background:var(--input-bg)}
+.search .ic{position:absolute;left:10px;top:8px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:4px;font-weight:500;background:var(--hover);white-space:nowrap}
+.btn:hover{background:var(--hover-strong)}
+.btn.primary{background:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{background:#c9372c;color:#fff}
+.btn.sm{height:28px;padding:0 10px}
+.icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:4px;color:var(--muted)}
+.icon-btn:hover{background:var(--hover)}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--avatar);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+.avatar.sm{width:24px;height:24px;font-size:10px}
+
+/* Work area */
+.work{flex:1;display:flex;gap:8px;padding:8px;min-height:0;position:relative}
+.panel{width:280px;flex:none;border-radius:12px;background:var(--panel-bg);display:flex;flex-direction:column;min-height:0;box-shadow:0 0 0 1px var(--border)}
+.panel-head{display:flex;align-items:center;gap:8px;padding:12px 12px 8px 16px;font-weight:700;font-size:16px}
+.panel-head .grow{flex:1}
+.panel-body{flex:1;overflow-y:auto;padding:0 8px 8px;min-height:0}
+.panel-foot{padding:10px 16px;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;justify-content:center}
+.inbox-add{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;background:var(--input-bg);box-shadow:var(--card-shadow);resize:none}
+.inbox-empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:12px}
+.inbox-empty b{display:block;font-size:16px;color:var(--fg);margin-bottom:6px}
+.work.noboard .panel{flex:1;width:auto;max-width:560px}
+.zone{display:flex;flex-direction:column;gap:8px;min-height:8px}
+.inbox-zone{padding:8px 0;min-height:60px}
+
+/* Board */
+.board{flex:1;min-width:0;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;position:relative;background-size:cover}
+.board-head{display:flex;align-items:center;gap:6px;padding:10px 12px 10px 16px;background:rgba(0,0,0,.24);backdrop-filter:blur(4px);color:#fff;flex-wrap:wrap}
+.board-title{font-size:18px;font-weight:700;padding:2px 8px;border-radius:4px;color:#fff}
+.board-title:hover{background:rgba(255,255,255,.2)}
+.board-title-input{font-size:18px;font-weight:700;padding:2px 8px;border-radius:4px;border:0;width:min(320px,60vw)}
+.bh-btn{height:32px;min-width:32px;padding:0 8px;border-radius:4px;display:inline-flex;align-items:center;gap:6px;color:#fff}
+.bh-btn:hover{background:rgba(255,255,255,.2)}
+.bh-btn.on{background:rgba(255,255,255,.85);color:#172b4d}
+.bh-btn .starred{color:#f5cd47;fill:#f5cd47}
+.bh-spacer{flex:1}
+.lists{flex:1;display:flex;align-items:flex-start;gap:12px;padding:12px;overflow-x:auto;overflow-y:hidden;min-height:0}
+.list{width:272px;flex:none;background:var(--lbg,var(--list-bg));border-radius:12px;display:flex;flex-direction:column;max-height:100%;box-shadow:0 1px 1px rgba(9,30,66,.25)}
+.list-head{display:flex;align-items:center;gap:2px;padding:8px 6px 4px 12px;cursor:grab;user-select:none;-webkit-user-select:none}
+.list-title{flex:1;font-weight:600;padding:4px 4px;border-radius:4px;overflow-wrap:anywhere;min-width:0}
+.list-title-input{flex:1;font-weight:600;padding:3px 6px;border:2px solid var(--accent);border-radius:4px;background:var(--input-bg);min-width:0}
+.count{font-size:13px;color:var(--muted);padding:0 4px;font-variant-numeric:tabular-nums}
+.list .icon-btn{width:30px;height:30px}
+.cards{flex:1;overflow-y:auto;padding:4px 8px 2px;min-height:6px;display:flex;flex-direction:column;gap:8px}
+.list-foot{padding:4px 8px 8px}
+.add-card-btn{width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;color:var(--muted);font-weight:500;text-align:left}
+.add-card-btn:hover{background:var(--hover);color:var(--fg)}
+.composer textarea{width:100%;border:0;border-radius:8px;padding:8px 12px;background:var(--card-bg);box-shadow:var(--card-shadow);resize:none;min-height:56px}
+.composer-row{display:flex;align-items:center;gap:4px;margin-top:8px}
+.list.collapsed{width:44px;cursor:pointer;padding:10px 0;align-items:center;gap:10px}
+.list.collapsed .vtitle{writing-mode:vertical-rl;font-weight:600;white-space:nowrap}
+.add-list{width:272px;flex:none;border-radius:12px;background:rgba(255,255,255,.24);color:#fff}
+.add-list:hover{background:rgba(255,255,255,.32)}
+.add-list>button{width:100%;display:flex;align-items:center;gap:8px;padding:12px;font-weight:600;color:#fff}
+.add-list form{background:var(--list-bg);border-radius:12px;padding:8px;color:var(--fg)}
+.add-list input{width:100%;padding:6px 10px;border:2px solid var(--accent);border-radius:4px;background:var(--input-bg)}
+
+/* Cards */
+.card{position:relative;background:var(--card-bg);border-radius:8px;box-shadow:var(--card-shadow);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden;flex:none}
+.card:hover{box-shadow:0 0 0 2px var(--accent)}
+.card-body{padding:8px 12px 6px}
+.cover{height:32px}
+.lbls{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.lbl{height:8px;min-width:40px;border-radius:4px}
+.lbl.wide{height:auto;min-width:48px;padding:0 8px;font-size:12px;font-weight:500;line-height:20px;color:var(--lb-fg)}
+.card-title{display:flex;align-items:flex-start;gap:0;overflow-wrap:anywhere}
+.tick{padding:0;width:0;overflow:hidden;flex:none;margin-top:2px;transition:width .15s,margin .15s;color:var(--muted);border-radius:50%}
+.card:hover .tick,.card.done .tick,.tick:focus-visible{width:16px;margin-right:6px}
+.card.done .tick{color:var(--ok)}
+.card-title-text{min-width:0}
+.badges{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:4px;color:var(--muted);font-size:12px}
+.badges:empty{display:none}
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:3px;padding:1px 4px 1px 2px}
+.badge.ok{background:var(--ok);color:#fff}
+.badge.soon{background:var(--warn-bg);color:var(--warn-fg)}
+.badge.late{background:#c9372c;color:#fff}
+.badges .avatar{margin-left:auto}
+.edit-btn{position:absolute;right:4px;top:4px;width:28px;height:28px;border-radius:50%;background:var(--card-bg);display:none;place-items:center;color:var(--muted)}
+.card:hover .edit-btn{display:grid}
+.edit-btn:hover{background:var(--field-bg)}
+.meta-line{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Drag & drop */
+.drag-src{display:none!important}
+.ghost{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;opacity:.95;box-shadow:var(--shadow-lg)!important}
+.ph-card{border-radius:8px;background:var(--hover-strong);flex:none}
+.ph-list{width:272px;flex:none;border-radius:12px;background:rgba(0,0,0,.2);align-self:stretch;max-height:100%}
+body.dragging,body.dragging *{cursor:grabbing!important}
+
+/* Planner */
+.planner-nav{display:flex;align-items:center;gap:4px;padding:0 8px 8px 16px;font-size:13px;color:var(--muted)}
+.planner-nav .grow{flex:1;font-weight:600;color:var(--fg)}
+.day{background:var(--card-bg);border-radius:10px;padding:8px;margin-bottom:8px;box-shadow:0 0 0 1px var(--border)}
+.day.today{box-shadow:0 0 0 2px var(--accent)}
+.day-head{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:0 2px 6px}
+.day.today .day-head{color:var(--accent)}
+.day .zone{min-height:24px}
+.day .card{box-shadow:0 0 0 1px var(--border)}
+.day-add{color:var(--muted);width:24px;height:24px;display:grid;place-items:center;border-radius:4px}
+.day-add:hover{background:var(--hover)}
+.day-input{width:100%;margin-top:6px;padding:6px 8px;border:2px solid var(--accent);border-radius:6px;background:var(--input-bg)}
+
+/* Dock */
+.dock{flex:none;display:flex;justify-content:center;padding:4px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+.dock-inner{display:flex;gap:2px;padding:4px;background:var(--top-bg);border-radius:10px;box-shadow:var(--shadow-lg);max-width:100%;overflow-x:auto}
+.dock button{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;font-weight:500;position:relative;white-space:nowrap;color:var(--fg)}
+.dock button:hover{background:var(--hover)}
+.dock button.on{background:var(--accent-soft);color:var(--accent)}
+.dock button.on::after{content:"";position:absolute;left:50%;bottom:0;width:16px;height:2px;margin-left:-8px;background:var(--accent);border-radius:2px}
+.dock .sep{width:1px;background:var(--border);margin:4px 4px}
+
+/* Popovers */
+.pop{position:fixed;z-index:500;width:304px;max-width:calc(100vw - 16px);max-height:calc(100% - 16px);overflow-y:auto;background:var(--pop-bg);border-radius:8px;box-shadow:var(--shadow-lg);padding:4px 12px 12px;color:var(--fg)}
+.pop-head{display:grid;grid-template-columns:32px 1fr 32px;align-items:center;text-align:center;font-weight:600;color:var(--muted);padding:4px 0}
+.pop-head span{grid-column:2}
+.pop-head .icon-btn{grid-column:3}
+.pop h4{font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:600}
+.menu-item{display:flex;width:100%;align-items:center;gap:8px;padding:6px 12px;margin:0 -12px;width:calc(100% + 24px);text-align:left}
+.menu-item:hover{background:var(--hover)}
+.menu-sep{height:1px;background:var(--border);margin:8px 0}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.swatch{height:32px;border-radius:4px;position:relative}
+.swatch.sel{box-shadow:0 0 0 2px var(--pop-bg),0 0 0 4px var(--accent)}
+.bg-swatch{height:40px}
+.field{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg)}
+label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px}
+.lbl-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.lbl-row input[type=checkbox]{width:16px;height:16px}
+.lbl-row .chip{flex:1;height:32px;border-radius:4px;padding:0 10px;display:flex;align-items:center;font-weight:500;color:var(--lb-fg);text-align:left}
+.lbl-row .chip:hover{filter:brightness(.95)}
+.check-row{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer}
+.board-pick{display:flex;align-items:center;gap:10px;padding:6px 12px;margin:0 -12px;width:calc(100% + 24px);text-align:left}
+.board-pick:hover{background:var(--hover)}
+.board-pick .thumb{width:40px;height:28px;border-radius:4px;flex:none}
+.board-pick.cur{font-weight:700}
+.board-pick .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Modal */
+.modal-back{position:fixed;inset:0;z-index:300;background:rgba(9,30,66,.55);overflow-y:auto;padding:48px 16px}
+.modal{position:relative;max-width:768px;margin:0 auto;background:var(--modal-bg);border-radius:12px;box-shadow:var(--shadow-lg);overflow:hidden}
+.m-cover{height:96px}
+.m-close{position:absolute;right:8px;top:8px;background:var(--modal-bg)}
+.m-head{display:flex;gap:10px;padding:20px 56px 4px 20px}
+.m-head .tick-lg{padding:0;margin-top:6px;color:var(--muted);flex:none;border-radius:50%}
+.m-head .tick-lg.on{color:var(--ok)}
+.m-title{flex:1;font-size:20px;font-weight:600;border:0;background:transparent;resize:none;padding:2px 6px;border-radius:4px;overflow:hidden;min-width:0}
+.m-title:focus{background:var(--input-bg);box-shadow:inset 0 0 0 2px var(--accent)}
+.m-sub{padding:0 20px 0 52px;color:var(--muted);font-size:13px}
+.m-sub button{text-decoration:underline;color:var(--muted)}
+.m-grid{display:grid;grid-template-columns:minmax(0,1fr) 184px;gap:24px;padding:16px 20px 24px}
+.m-meta{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:20px}
+.m-meta h4,.m-sec h4,.m-side h4{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px}
+.m-meta .row{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.m-meta .lbl.wide{height:32px;line-height:32px;border-radius:4px;padding:0 12px;font-size:14px}
+.chipbtn{height:32px;padding:0 10px;border-radius:4px;background:var(--hover);display:inline-flex;align-items:center;gap:6px}
+.chipbtn:hover{background:var(--hover-strong)}
+.duepill{font-size:12px;padding:1px 6px;border-radius:3px;font-weight:600}
+.duepill.ok{background:var(--ok);color:#fff}.duepill.late{background:#c9372c;color:#fff}.duepill.soon{background:var(--warn-bg);color:var(--warn-fg)}
+.m-sec{margin-bottom:24px}
+.m-sec-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.m-sec-head h3{font-size:16px;margin:0;flex:1}
+.desc-view{padding:8px 12px;border-radius:4px;background:var(--hover);min-height:56px;white-space:pre-wrap;cursor:pointer;overflow-wrap:anywhere}
+.desc-view.filled{background:transparent;padding:0;min-height:0}
+.desc-edit{width:100%;min-height:120px;padding:8px 12px;border:2px solid var(--accent);border-radius:4px;background:var(--input-bg);resize:vertical}
+.btn-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.progress{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px}
+.progress .bar{flex:1;height:8px;border-radius:4px;background:var(--hover-strong);overflow:hidden}
+.progress .bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.progress.full .bar i{background:var(--ok)}
+.ci{display:flex;align-items:flex-start;gap:8px;padding:4px 6px;border-radius:4px}
+.ci:hover{background:var(--hover)}
+.ci input[type=checkbox]{width:16px;height:16px;margin-top:3px;flex:none}
+.ci .txt{flex:1;min-width:0;overflow-wrap:anywhere;cursor:text}
+.ci.done .txt{text-decoration:line-through;color:var(--muted)}
+.ci .icon-btn{width:24px;height:24px;visibility:hidden}
+.ci:hover .icon-btn{visibility:visible}
+.ci-edit{flex:1;padding:4px 8px;border:2px solid var(--accent);border-radius:4px;background:var(--input-bg)}
+.comment-box{display:flex;gap:8px;margin-bottom:12px}
+.comment-box textarea{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);resize:vertical;min-height:40px}
+.act{display:flex;gap:8px;margin-bottom:12px;font-size:13px}
+.act .who{font-weight:600}
+.act .when{color:var(--muted);font-size:12px}
+.act .bubble{background:var(--input-bg);border-radius:8px;padding:8px 12px;box-shadow:var(--card-shadow);margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.act .lnk{font-size:12px;color:var(--muted);text-decoration:underline;margin-top:2px}
+.m-side{display:flex;flex-direction:column;gap:6px}
+.side-btn{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:4px;background:var(--hover);font-weight:500;text-align:left;width:100%}
+.side-btn:hover{background:var(--hover-strong)}
+.side-btn.danger{background:#c9372c;color:#fff}
+.m-side h4{margin-top:10px}
+.archived-note{background:var(--warn-bg);color:var(--warn-fg);padding:10px 20px;font-weight:500;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* Drawer */
+.drawer{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:100%;background:var(--pop-bg);z-index:200;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;border-radius:12px 0 0 12px}
+.drawer-body{flex:1;overflow-y:auto;padding:0 16px 16px}
+.drawer h4{font-size:12px;color:var(--muted);margin:16px 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.arch-item{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border)}
+.arch-item .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.lbl-edit{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.lbl-edit i{width:40px;height:28px;border-radius:4px;flex:none}
+
+/* Attachments */
+.att{display:flex;align-items:center;gap:10px;padding:6px;border-radius:6px}
+.att:hover{background:var(--hover)}
+.att-ic{width:56px;height:40px;border-radius:4px;background:var(--hover-strong);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted);flex:none;text-transform:uppercase}
+.att-ic.mail{background:var(--accent-soft);color:var(--accent)}
+.att-main{flex:1;min-width:0}
+.att-main b{display:block;font-weight:600;overflow-wrap:anywhere}
+.att-main span{font-size:12px;color:var(--muted)}
+.att-hint{border:2px dashed var(--border);border-radius:8px;padding:14px;text-align:center;color:var(--muted);font-size:13px}
+.drop-hl{box-shadow:0 0 0 3px var(--accent)!important}
+.list.drop-hl,.panel.drop-hl{outline:3px solid var(--accent);outline-offset:-3px}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#172b4d;color:#fff;padding:10px 14px;border-radius:8px;display:flex;gap:12px;align-items:center;z-index:900;box-shadow:var(--shadow-lg);max-width:calc(100vw - 32px)}
+.toast button{color:#85b8ff;font-weight:600;text-decoration:underline}
+
+.only-narrow{display:none}
+@media (max-width:760px){
+  .hide-narrow{display:none!important}.only-narrow{display:inline}
+  .work{padding:8px 6px}
+  .panel{flex:1;width:auto}
+  .logo span,.btn .lbl-txt{display:none}
+  .m-grid{grid-template-columns:1fr}
+  .m-side{display:grid;grid-template-columns:1fr 1fr}
+  .m-side h4{grid-column:1/-1}
+  .modal-back{padding:16px 8px}
+  .dock button{padding:6px 8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app">
+  <header class="top">
+    <div class="logo"><div class="logo-mark"><i></i><i></i></div><span>Planbord</span></div>
+    <div class="search">
+      <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+      <input id="q" type="search" placeholder="Zoeken in kaarten" autocomplete="off" aria-label="Zoeken in kaarten">
+    </div>
+    <button class="btn primary" data-act="createMenu"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl-txt">Aanmaken</span></button>
+    <div class="avatar" title="Leon Janssen">LE</div>
+  </header>
+  <main class="work" id="work">
+    <aside class="panel" id="inboxPanel"></aside>
+    <aside class="panel" id="plannerPanel"></aside>
+    <section class="board" id="boardWrap">
+      <div class="board-head" id="boardHead"></div>
+      <div class="lists" id="lists"></div>
+    </section>
+  </main>
+  <nav class="dock" id="dock"></nav>
+</div>
+<div id="modalRoot"></div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseISO=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const MAAND=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const DAG=['zo','ma','di','wo','do','vr','za'];
+const fmtDue=s=>{const d=parseISO(s);return `${d.getDate()} ${MAAND[d.getMonth()]}`};
+const fmtTime=t=>{const d=new Date(t);return `${d.getDate()} ${MAAND[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const ICONS={
+ plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ dots:'<circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/>',
+ collapse:'<path d="M2 12h7M6 8.5L9.5 12 6 15.5M22 12h-7M18 8.5L14.5 12l3.5 3.5"/>',
+ star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
+ filter:'<path d="M4 6h16M7 12h10M10 18h4"/>',
+ inbox:'<path d="M4 13l2-8h12l2 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
+ calendar:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+ board:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15M15 4.5v9"/>',
+ switch:'<rect x="3" y="8" width="14" height="12" rx="2"/><path d="M7 4h12a2 2 0 0 1 2 2v10"/>',
+ eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+ desc:'<path d="M4 6h16M4 11h16M4 16h10"/>',
+ checklist:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/>',
+ circle:'<circle cx="12" cy="12" r="8.5"/>',
+ circleCheck:'<circle cx="12" cy="12" r="9" fill="currentColor" stroke="currentColor"/><path d="M8 12.3l2.8 2.8L16.2 9.5" stroke="#fff" stroke-width="2.2"/>',
+ chat:'<path d="M4 5h16v11H9l-5 4z"/>', clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+ pencil:'<path d="M15.5 4.5l4 4L8 20H4v-4z"/>',
+ tag:'<path d="M3.5 12.5V4h8.5l8.5 8.5-8.5 8.5z"/><circle cx="8" cy="8.5" r="1.4"/>',
+ cover:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 10h17"/>',
+ archive:'<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>',
+ trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+ move:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+ copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>',
+ lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+ back:'<path d="M15 6l-6 6 6 6"/>', fwd:'<path d="M9 6l6 6-6 6"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+ restore:'<path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4"/>',
+ image:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-9 8.5"/>',
+ clip:'<path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+ sort:'<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>'
+};
+const ic=(n,s=16,cls='')=>`<svg class="ic ${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+
+const BGS={
+ paars:'linear-gradient(175deg,#5b4cbe 0%,#9a5cc9 48%,#e27cbc 100%)',
+ oceaan:'linear-gradient(160deg,#0c66e4 0%,#09326c 100%)',
+ zonsondergang:'linear-gradient(160deg,#f99cdb 0%,#fea362 55%,#f5cd47 100%)',
+ aurora:'linear-gradient(160deg,#00a3bf 0%,#6e5dc6 100%)',
+ bos:'linear-gradient(160deg,#22a06b 0%,#164b35 100%)',
+ nacht:'linear-gradient(160deg,#44546f 0%,#1d2125 100%)',
+ blauw:'#0079bf', oranje:'#d29034', groen:'#519839', rood:'#b04632', violet:'#89609e', roze:'#cd5a91', lime:'#4bbf6b', grijs:'#838c91'
+};
+const LIST_COLORS=['none','yellow','green','blue','purple','red','orange','teal','pink'];
+const LABEL_COLORS=['green','yellow','orange','red','purple','blue','sky','pink'];
+const COLOR_NL={none:'Geen',yellow:'Geel',green:'Groen',blue:'Blauw',purple:'Paars',red:'Rood',orange:'Oranje',teal:'Turquoise',pink:'Roze',sky:'Lichtblauw'};
+
+/* ---------- state ---------- */
+const LS_KEY='planbord.v1';
+function mkCard(title,extra){return Object.assign({id:uid(),title,desc:'',labels:[],due:null,done:false,watch:false,members:[],cover:null,checklists:[],comments:[],activity:[{text:'heeft deze kaart toegevoegd',at:Date.now()}],created:Date.now()},extra||{})}
+function defaultLabels(){return LABEL_COLORS.slice(0,6).map(c=>({id:uid(),color:c,name:''}))}
+function mkBoard(title,bg,lists){return {id:uid(),title,bg,starred:false,labels:defaultLabels(),lists:(lists||[]).map(l=>({id:uid(),title:l,color:'none',collapsed:false,cards:[]})),archive:{cards:[],lists:[]}}}
+function seed(){
+  const b=mkBoard('Mijn Trello-bord','paars',['Vandaag','Deze week','Later','Aanvraag staat uit','nakijken']);
+  b.starred=true;
+  b.lists[0].color='yellow'; b.lists[1].color='green';
+  b.lists[0].cards.push(mkCard('Aan de slag met Trello',{done:true,watch:true,members:['LE']}));
+  ['Z-mike computer instaleren','CRM systeem uitzoeken','Computers instaleren zoveel mogelijk','Zitten voor stuklijsten met Nanne','Computer vincent','Marjolijn computer','Herbert computer nakijken','Computers Euromec nakijken','checklist maken inschieten order','ten voorbereiding stukjlijsten bekijken en bekend maken']
+    .forEach(t=>b.lists[2].cards.push(mkCard(t)));
+  return {boards:[b],inbox:[],current:b.id,ui:{inbox:true,planner:false,board:true}};
+}
+function load(){try{const r=localStorage.getItem(LS_KEY);if(r){const s=JSON.parse(r);if(s&&s.boards&&s.boards.length)return s}}catch(e){}return seed()}
+let S=load();
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
+const board=()=>S.boards.find(b=>b.id===S.current)||S.boards[0];
+function findList(id){for(const b of S.boards){const l=b.lists.find(l=>l.id===id);if(l)return {list:l,board:b}}return null}
+function locate(id){
+  let i=S.inbox.findIndex(c=>c.id===id); if(i>=0) return {card:S.inbox[i],arr:S.inbox,i,list:null,board:null};
+  for(const b of S.boards){for(const l of b.lists){i=l.cards.findIndex(c=>c.id===id);if(i>=0)return {card:l.cards[i],arr:l.cards,i,list:l,board:b}}
+    i=b.archive.cards.findIndex(a=>a.card.id===id); if(i>=0) return {card:b.archive.cards[i].card,arr:null,i,list:null,board:b,archived:true};}
+  return null;
+}
+const log=(c,text)=>{c.activity=c.activity||[];c.activity.push({text,at:Date.now()})};
+
+/* ---------- UI state ---------- */
+let composer=null, addingList=false, editingListTitle=null, editingBoardTitle=false;
+let modalId=null, descEditing=false, editingItem=null, drawerOpen=false, deleteConfirm=null;
+let filter={labels:new Set(),due:new Set(),status:new Set()};
+let q='';
+let weekStart=(()=>{const d=new Date();d.setHours(0,0,0,0);const k=(d.getDay()+6)%7;d.setDate(d.getDate()-k);return d})();
+let dayAdding=null;
+const narrow=()=>window.matchMedia('(max-width:760px)').matches;
+
+function dueState(c){
+  if(!c.due) return '';
+  if(c.done) return 'ok';
+  const today=iso(new Date()); if(c.due<today) return 'late';
+  const t=new Date();t.setDate(t.getDate()+1); if(c.due<=iso(t)) return 'soon';
+  return '';
+}
+function filterActive(){return filter.labels.size+filter.due.size+filter.status.size>0||q.trim()!==''}
+function matches(c){
+  const qq=q.trim().toLowerCase();
+  if(qq&&!(c.title.toLowerCase().includes(qq)||(c.desc||'').toLowerCase().includes(qq))) return false;
+  if(filter.labels.size&&!c.labels.some(l=>filter.labels.has(l))) return false;
+  if(filter.due.size){const st=dueState(c);let ok=false;
+    if(filter.due.has('none')&&!c.due) ok=true;
+    if(filter.due.has('late')&&st==='late') ok=true;
+    if(filter.due.has('soon')&&st==='soon') ok=true;
+    if(filter.due.has('week')&&c.due&&!c.done){const t=new Date();t.setDate(t.getDate()+7);if(c.due<=iso(t)&&c.due>=iso(new Date()))ok=true}
+    if(!ok) return false;}
+  if(filter.status.size){if(c.done&&!filter.status.has('done'))return false;if(!c.done&&!filter.status.has('open'))return false}
+  return true;
+}
+function labelOf(b,id){for(const bb of [b,...S.boards]){const l=bb&&bb.labels.find(x=>x.id===id);if(l)return l}return null}
+
+/* ---------- render: cards ---------- */
+function cardHtml(c,b,opts={}){
+  const lbls=c.labels.map(id=>labelOf(b,id)).filter(Boolean);
+  const checks=c.checklists.reduce((a,cl)=>[a[0]+cl.items.filter(i=>i.done).length,a[1]+cl.items.length],[0,0]);
+  const st=dueState(c);
+  let badges='';
+  if(c.watch) badges+=`<span class="badge" title="Je volgt deze kaart">${ic('eye',14)}</span>`;
+  if(c.due) badges+=`<span class="badge ${st}" title="Vervaldatum">${ic('clock',14)}${fmtDue(c.due)}</span>`;
+  if(c.desc) badges+=`<span class="badge" title="Deze kaart heeft een beschrijving">${ic('desc',14)}</span>`;
+  if(c.attachments&&c.attachments.length) badges+=`<span class="badge" title="Bijlagen">${ic('clip',14)}${c.attachments.length}</span>`;
+  if(c.comments.length) badges+=`<span class="badge" title="Opmerkingen">${ic('chat',14)}${c.comments.length}</span>`;
+  if(checks[1]) badges+=`<span class="badge ${checks[0]===checks[1]?'ok':''}" title="Checklist-items">${ic('checklist',14)}${checks[0]}/${checks[1]}</span>`;
+  if(c.members.length) badges+=c.members.map(m=>`<span class="avatar sm" title="Leon Janssen">${esc(m)}</span>`).join('');
+  return `<div class="card ${c.done?'done':''}" data-card="${c.id}" tabindex="0" aria-label="${esc(c.title)}">
+    ${c.cover?`<div class="cover" style="background:var(--lb-${c.cover})"></div>`:''}
+    <div class="card-body">
+      ${lbls.length?`<div class="lbls">${lbls.map(l=>`<span class="lbl ${l.name?'wide':''}" style="background:var(--lb-${l.color})" title="${esc(l.name||COLOR_NL[l.color])}">${esc(l.name)}</span>`).join('')}</div>`:''}
+      <div class="card-title"><button class="tick" data-act="toggleDone" data-id="${c.id}" aria-label="${c.done?'Markeren als niet voltooid':'Markeren als voltooid'}">${ic(c.done?'circleCheck':'circle',16)}</button><span class="card-title-text">${esc(c.title)}</span></div>
+      ${opts.meta?`<div class="meta-line">${esc(opts.meta)}</div>`:''}
+      <div class="badges">${badges}</div>
+    </div>
+    <button class="edit-btn" data-act="openCard" data-id="${c.id}" aria-label="Kaart openen">${ic('pencil',14)}</button>
+  </div>`;
+}
+
+/* ---------- render: board ---------- */
+function renderBoard(skipDrawer){
+  const b=board(); const wrap=$('#boardWrap');
+  wrap.hidden=!S.ui.board;
+  wrap.style.background=BGS[b.bg]||b.bg;
+  const fc=filter.labels.size+filter.due.size+filter.status.size;
+  $('#boardHead').innerHTML=`
+    ${editingBoardTitle?`<input class="board-title-input" id="boardTitleInput" value="${esc(b.title)}" aria-label="Bordnaam">`:`<button class="board-title" data-act="editBoardTitle">${esc(b.title)}</button>`}
+    <button class="bh-btn" data-act="toggleStar" aria-label="${b.starred?'Ster verwijderen':'Ster toevoegen'}" title="Bord met ster markeren">${b.starred?'<svg class="ic starred" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.8">'+ICONS.star+'</svg>':ic('star')}</button>
+    <span class="bh-btn hide-narrow" style="cursor:default">${ic('board')}<span>Bord</span></span>
+    <span class="bh-spacer"></span>
+    <button class="bh-btn ${fc?'on':''}" data-act="filterMenu">${ic('filter')}<span>Filter${fc?` (${fc})`:''}</span></button>
+    <span class="avatar hide-narrow" title="Leon Janssen">LE</span>
+    <button class="bh-btn" data-act="openDrawer" aria-label="Bordmenu">${ic('dots')}</button>`;
+  const lists=$('#lists'); const scrolls={};
+  lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z)scrolls[el.dataset.list]=z.scrollTop});
+  lists.innerHTML=b.lists.map(l=>listHtml(l,b)).join('')+`<div class="add-list" id="addList">${addingList?`<form id="addListForm"><input id="addListInput" placeholder="Voer lijstnaam in…" aria-label="Lijstnaam"><div class="composer-row"><button class="btn primary sm" type="submit">Lijst toevoegen</button><button type="button" class="icon-btn" data-act="cancelAddList" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button data-act="addList">${ic('plus')}Voeg een andere lijst toe</button>`}</div>`;
+  lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z&&scrolls[el.dataset.list])z.scrollTop=scrolls[el.dataset.list]});
+  if(editingBoardTitle){const i=$('#boardTitleInput');i.focus();i.select()}
+  if(addingList) $('#addListInput').focus();
+  if(composer&&composer!=='inbox'){const t=document.querySelector(`[data-composer="${composer}"]`);if(t){t.focus();const z=t.closest('.list').querySelector('.cards');}}
+  if(editingListTitle){const i=document.querySelector(`[data-list-title-input]`);if(i){i.focus();i.select()}}
+  if(!skipDrawer) renderDrawer();
+}
+function listHtml(l,b){
+  const vis=l.cards.filter(matches);
+  if(l.collapsed) return `<div class="list collapsed" data-list="${l.id}" data-act="collapse" data-id="${l.id}" style="--lbg:var(--lc-${l.color})" title="Lijst uitklappen">${ic('collapse')}<span class="vtitle">${esc(l.title)}</span><span class="count">${vis.length}</span></div>`;
+  return `<div class="list" data-list="${l.id}" style="--lbg:var(--lc-${l.color})">
+    <div class="list-head">
+      ${editingListTitle===l.id?`<input class="list-title-input" data-list-title-input="${l.id}" value="${esc(l.title)}" aria-label="Lijstnaam">`:`<h2 class="list-title" style="font-size:14px;margin:0" data-title-of="${l.id}">${esc(l.title)}</h2>`}
+      <span class="count" title="Aantal kaarten">${vis.length}</span>
+      <button class="icon-btn" data-act="collapse" data-id="${l.id}" aria-label="Lijst inklappen" title="Lijst inklappen">${ic('collapse')}</button>
+      <button class="icon-btn" data-act="listMenu" data-id="${l.id}" aria-label="Lijstacties">${ic('dots')}</button>
+    </div>
+    <div class="cards zone" data-drop="list:${l.id}">${vis.map(c=>cardHtml(c,b)).join('')}</div>
+    <div class="list-foot">${composer===l.id?`<form class="composer" data-composer-form="${l.id}"><textarea data-composer="${l.id}" placeholder="Voer een titel in of plak een link" aria-label="Kaarttitel"></textarea><div class="composer-row"><button class="btn primary sm" type="submit">Kaart toevoegen</button><button type="button" class="icon-btn" data-act="closeComposer" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button class="add-card-btn" data-act="openComposer" data-id="${l.id}">${ic('plus')}Een kaart toevoegen</button>`}</div>
+  </div>`;
+}
+
+/* ---------- render: panels ---------- */
+function renderInbox(){
+  const p=$('#inboxPanel'); p.hidden=!S.ui.inbox; if(!S.ui.inbox) return;
+  const vis=S.inbox.filter(matches);
+  const draft=$('#inboxAdd')?.value||'';
+  p.innerHTML=`<div class="panel-head">${ic('inbox',18)}<span class="grow">Inbox</span><button class="icon-btn" data-act="togglePanel" data-id="inbox" aria-label="Inbox sluiten">${ic('x')}</button></div>
+  <div class="panel-body">
+    <form id="inboxForm"><textarea class="inbox-add" id="inboxAdd" rows="1" placeholder="Een kaart toevoegen" aria-label="Kaart toevoegen aan Inbox">${esc(draft)}</textarea></form>
+    <div class="zone inbox-zone" data-drop="inbox">${vis.map(c=>cardHtml(c,board())).join('')}</div>
+    ${S.inbox.length?'':`<div class="inbox-empty"><b>Breng je taken samen</b>Zet ideeën en taken hier snel neer en sleep ze later naar een lijst op je bord.</div>`}
+  </div>
+  <div class="panel-foot">${ic('lock',14)}Inbox is alleen voor jou zichtbaar</div>`;
+}
+function allDated(){
+  const out=[];
+  S.inbox.forEach(c=>c.due&&out.push({c,meta:'Inbox',b:board()}));
+  S.boards.forEach(b=>b.lists.forEach(l=>l.cards.forEach(c=>c.due&&out.push({c,meta:`${b.title} · ${l.title}`,b}))));
+  return out;
+}
+function renderPlanner(){
+  const p=$('#plannerPanel'); p.hidden=!S.ui.planner; if(!S.ui.planner) return;
+  const dated=allDated().filter(x=>matches(x.c)); const today=iso(new Date());
+  const end=new Date(weekStart);end.setDate(end.getDate()+6);
+  let days='';
+  for(let i=0;i<7;i++){const d=new Date(weekStart);d.setDate(d.getDate()+i);const k=iso(d);
+    const items=dated.filter(x=>x.c.due===k);
+    days+=`<div class="day ${k===today?'today':''}"><div class="day-head"><span>${DAG[d.getDay()]} ${d.getDate()} ${MAAND[d.getMonth()]}${k===today?' · vandaag':''}</span><button class="day-add" data-act="dayAdd" data-id="${k}" aria-label="Kaart toevoegen op ${d.getDate()} ${MAAND[d.getMonth()]}">${ic('plus',14)}</button></div>
+      <div class="zone" data-drop="day:${k}">${items.map(x=>cardHtml(x.c,x.b,{meta:x.meta})).join('')}</div>
+      ${dayAdding===k?`<form data-day-form="${k}"><input class="day-input" data-day-input="${k}" placeholder="Titel, Enter om op te slaan" aria-label="Kaarttitel"></form>`:''}
+    </div>`;}
+  p.innerHTML=`<div class="panel-head">${ic('calendar',18)}<span class="grow">Planner</span><button class="icon-btn" data-act="togglePanel" data-id="planner" aria-label="Planner sluiten">${ic('x')}</button></div>
+  <div class="planner-nav"><span class="grow">${weekStart.getDate()} ${MAAND[weekStart.getMonth()]} – ${end.getDate()} ${MAAND[end.getMonth()]} ${end.getFullYear()}</span>
+    <button class="btn sm" data-act="weekToday">Vandaag</button>
+    <button class="icon-btn" data-act="weekPrev" aria-label="Vorige week">${ic('back')}</button>
+    <button class="icon-btn" data-act="weekNext" aria-label="Volgende week">${ic('fwd')}</button></div>
+  <div class="panel-body">${days}<p style="font-size:12px;color:var(--muted);padding:0 4px">Sleep een kaart naar een dag om de vervaldatum te zetten.</p></div>`;
+  if(dayAdding){const i=document.querySelector(`[data-day-input="${dayAdding}"]`);i&&i.focus()}
+}
+function renderDock(){
+  const u=S.ui;
+  $('#dock').innerHTML=`<div class="dock-inner">
+    <button class="${u.inbox?'on':''}" data-act="togglePanel" data-id="inbox" aria-pressed="${u.inbox}">${ic('inbox')}Inbox</button>
+    <button class="${u.planner?'on':''}" data-act="togglePanel" data-id="planner" aria-pressed="${u.planner}">${ic('calendar')}Planner</button>
+    <button class="${u.board?'on':''}" data-act="togglePanel" data-id="board" aria-pressed="${u.board}">${ic('board')}Bord</button>
+    <span class="sep"></span>
+    <button data-act="switchBoard">${ic('switch')}<span class="hide-narrow">Van bord wisselen</span><span class="only-narrow">Borden</span></button></div>`;
+}
+function renderAll(){
+  if(narrow()){const on=['inbox','planner','board'].filter(k=>S.ui[k]);if(on.length>1){const keep=S.ui.board?'board':on[0];S.ui={inbox:false,planner:false,board:false};S.ui[keep]=true}}
+  $('#work').classList.toggle('noboard',!S.ui.board);
+  renderInbox();renderPlanner();renderBoard();renderDock();renderModal();
+}
+function commit(){save();renderAll()}
+
+/* ---------- drawer (board menu) ---------- */
+function renderDrawer(){
+  let d=$('#drawer');
+  if(!drawerOpen){d&&d.remove();return}
+  const b=board();
+  if(!d){d=document.createElement('div');d.id='drawer';d.className='drawer';$('#boardWrap').appendChild(d)}
+  d.innerHTML=`<div class="pop-head" style="padding:8px 8px 4px"><span>Menu</span><button class="icon-btn" data-act="closeDrawer" aria-label="Menu sluiten">${ic('x')}</button></div>
+  <div class="drawer-body">
+    <h4>Achtergrond</h4>
+    <div class="swatches">${Object.keys(BGS).map(k=>`<button class="swatch bg-swatch ${b.bg===k?'sel':''}" style="background:${BGS[k]}" data-act="setBg" data-id="${k}" aria-label="Achtergrond ${k}" title="${k}"></button>`).join('')}</div>
+    <h4>Labels</h4>
+    ${b.labels.map(l=>`<div class="lbl-edit"><i style="background:var(--lb-${l.color})"></i><input class="field" data-label-name="${l.id}" value="${esc(l.name)}" placeholder="${COLOR_NL[l.color]} (zonder naam)" aria-label="Labelnaam ${COLOR_NL[l.color]}"><button class="icon-btn" data-act="delLabel" data-id="${l.id}" aria-label="Label verwijderen">${ic('trash',14)}</button></div>`).join('')}
+    <button class="btn sm" data-act="addLabel">${ic('plus',14)}Label toevoegen</button>
+    <h4>Gearchiveerde kaarten (${b.archive.cards.length})</h4>
+    ${b.archive.cards.length?b.archive.cards.map(a=>`<div class="arch-item"><span class="grow">${esc(a.card.title)}</span><button class="btn sm" data-act="restoreCard" data-id="${a.card.id}">Herstellen</button><button class="icon-btn" data-act="openCard" data-id="${a.card.id}" aria-label="Openen">${ic('pencil',14)}</button></div>`).join(''):'<p style="color:var(--muted);font-size:13px;margin:0">Nog geen gearchiveerde kaarten.</p>'}
+    <h4>Gearchiveerde lijsten (${b.archive.lists.length})</h4>
+    ${b.archive.lists.length?b.archive.lists.map(l=>`<div class="arch-item"><span class="grow">${esc(l.title)} <span style="color:var(--muted)">(${l.cards.length})</span></span><button class="btn sm" data-act="restoreList" data-id="${l.id}">Herstellen</button><button class="icon-btn" data-act="deleteList" data-id="${l.id}" aria-label="Definitief verwijderen">${ic('trash',14)}</button></div>`).join(''):'<p style="color:var(--muted);font-size:13px;margin:0">Nog geen gearchiveerde lijsten.</p>'}
+    <h4>Bord</h4>
+    <div class="btn-row" style="margin-top:0"><button class="btn sm" data-act="copyBoard">${ic('copy',14)}Bord kopiëren</button>
+    ${S.boards.length>1?(deleteConfirm==='board'?`<button class="btn danger sm" data-act="deleteBoard">Ja, bord verwijderen</button><button class="btn sm" data-act="cancelConfirm">Annuleren</button>`:`<button class="btn sm" data-act="askDeleteBoard">${ic('trash',14)}Bord verwijderen</button>`):''}</div>
+  </div>`;
+}
+
+/* ---------- modal ---------- */
+function renderModal(){
+  const root=$('#modalRoot');
+  if(!modalId){root.innerHTML='';return}
+  const loc=locate(modalId); if(!loc){modalId=null;root.innerHTML='';return}
+  const c=loc.card, b=loc.board||board();
+  const keepScroll=root.querySelector('.modal-back')?.scrollTop||0;
+  const commentDraft=$('#commentInput')?.value||'';
+  const where=loc.archived?'archief':loc.list?loc.list.title:'Inbox';
+  const lbls=c.labels.map(id=>labelOf(b,id)).filter(Boolean);
+  const st=dueState(c);
+  const acts=[...c.comments.map(x=>({...x,kind:'c'})),...(c.activity||[]).map(x=>({...x,kind:'a'}))].sort((a,z)=>z.at-a.at);
+  root.innerHTML=`<div class="modal-back" id="modalBack"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(c.title)}">
+    ${c.cover?`<div class="m-cover" style="background:var(--lb-${c.cover})"></div>`:''}
+    ${loc.archived?`<div class="archived-note">${ic('archive')}Deze kaart is gearchiveerd.<button class="btn sm" data-act="restoreCard" data-id="${c.id}">Herstellen</button>${deleteConfirm===c.id?`<button class="btn danger sm" data-act="deleteCard" data-id="${c.id}">Ja, definitief verwijderen</button>`:`<button class="btn sm" data-act="askDeleteCard" data-id="${c.id}">Verwijderen</button>`}</div>`:''}
+    <button class="icon-btn m-close" data-act="closeModal" aria-label="Sluiten">${ic('x',20)}</button>
+    <div class="m-head"><button class="tick-lg ${c.done?'on':''}" data-act="toggleDone" data-id="${c.id}" aria-label="${c.done?'Markeren als niet voltooid':'Markeren als voltooid'}">${ic(c.done?'circleCheck':'circle',22)}</button>
+      <textarea class="m-title" id="mTitle" rows="1" aria-label="Kaarttitel">${esc(c.title)}</textarea></div>
+    <div class="m-sub">in lijst <button data-act="moveMenu" data-id="${c.id}">${esc(where)}</button>${loc.board?` op ${esc(loc.board.title)}`:''}</div>
+    <div class="m-grid">
+      <div class="m-main">
+        <div class="m-meta">
+          ${c.members.length?`<div><h4>Leden</h4><div class="row">${c.members.map(m=>`<span class="avatar" title="Leon Janssen">${esc(m)}</span>`).join('')}</div></div>`:''}
+          ${lbls.length?`<div><h4>Labels</h4><div class="row">${lbls.map(l=>`<span class="lbl wide" style="background:var(--lb-${l.color})">${esc(l.name||' ')}</span>`).join('')}<button class="chipbtn" data-act="labelMenu" data-id="${c.id}" aria-label="Labels bewerken">${ic('plus')}</button></div></div>`:''}
+          ${c.due?`<div><h4>Vervaldatum</h4><div class="row"><button class="chipbtn" data-act="dateMenu" data-id="${c.id}">${fmtDue(c.due)} ${parseISO(c.due).getFullYear()} ${st==='ok'?'<span class="duepill ok">Voltooid</span>':st==='late'?'<span class="duepill late">Verlopen</span>':st==='soon'?'<span class="duepill soon">Binnenkort</span>':''}</button></div></div>`:''}
+          ${c.watch?`<div><h4>Meldingen</h4><div class="row"><button class="chipbtn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}Volgend</button></div></div>`:''}
+        </div>
+        <section class="m-sec"><div class="m-sec-head">${ic('desc',20)}<h3>Beschrijving</h3>${c.desc&&!descEditing?`<button class="btn sm" data-act="editDesc">Bewerken</button>`:''}</div>
+          ${descEditing?`<textarea class="desc-edit" id="descInput" aria-label="Beschrijving">${esc(c.desc)}</textarea><div class="btn-row"><button class="btn primary sm" data-act="saveDesc" data-id="${c.id}">Opslaan</button><button class="btn sm" data-act="cancelDesc">Annuleren</button></div>`
+          :`<div class="desc-view ${c.desc?'filled':''}" data-act="editDesc" role="button" tabindex="0">${c.desc?esc(c.desc):'<span style="color:var(--muted)">Voeg een gedetailleerdere beschrijving toe…</span>'}</div>`}
+        </section>
+        <section class="m-sec"><div class="m-sec-head">${ic('clip',20)}<h3>Bijlagen</h3><label class="btn sm" for="attInput">Toevoegen</label><input type="file" id="attInput" multiple hidden></div>
+          ${(c.attachments||[]).length?c.attachments.map(attHtml).join(''):''}
+          <div class="att-hint" style="margin-top:6px">Sleep een mail uit Outlook of een bestand hierheen.</div>
+        </section>
+        ${c.checklists.map(cl=>{const n=cl.items.length,dn=cl.items.filter(i=>i.done).length,pc=n?Math.round(dn/n*100):0;
+          return `<section class="m-sec"><div class="m-sec-head">${ic('checklist',20)}<h3>${esc(cl.title)}</h3><button class="btn sm" data-act="delChecklist" data-id="${cl.id}">Verwijderen</button></div>
+          <div class="progress ${n&&dn===n?'full':''}"><span style="width:32px;font-variant-numeric:tabular-nums">${pc}%</span><span class="bar"><i style="width:${pc}%"></i></span></div>
+          ${cl.items.map(it=>`<div class="ci ${it.done?'done':''}"><input type="checkbox" ${it.done?'checked':''} data-ci-toggle="${cl.id}:${it.id}" aria-label="${esc(it.text)}">${editingItem===it.id?`<input class="ci-edit" data-ci-edit="${cl.id}:${it.id}" value="${esc(it.text)}" aria-label="Item bewerken">`:`<span class="txt" data-act="editItem" data-id="${it.id}">${esc(it.text)}</span>`}<button class="icon-btn" data-act="delItem" data-id="${cl.id}:${it.id}" aria-label="Item verwijderen">${ic('x',14)}</button></div>`).join('')}
+          <form data-ci-add="${cl.id}" style="margin-top:6px;display:flex;gap:6px"><input class="field" placeholder="Een item toevoegen" aria-label="Checklist-item toevoegen" id="ciadd-${cl.id}"><button class="btn sm" type="submit">Toevoegen</button></form>
+          </section>`}).join('')}
+        <section class="m-sec"><div class="m-sec-head">${ic('chat',20)}<h3>Opmerkingen en activiteit</h3></div>
+          <form class="comment-box" id="commentForm"><span class="avatar">LE</span><textarea id="commentInput" placeholder="Schrijf een opmerking…" aria-label="Opmerking">${esc(commentDraft)}</textarea><button class="btn primary sm" type="submit" style="align-self:flex-start">Opslaan</button></form>
+          ${acts.map(a=>a.kind==='c'?`<div class="act"><span class="avatar">LE</span><div style="flex:1;min-width:0"><span class="who">Leon Janssen</span> <span class="when">${fmtTime(a.at)}</span><div class="bubble">${esc(a.text)}</div><button class="lnk" data-act="delComment" data-id="${a.id}">Verwijderen</button></div></div>`
+            :`<div class="act"><span class="avatar">LE</span><div><span class="who">Leon Janssen</span> ${esc(a.text)}<div class="when">${fmtTime(a.at)}</div></div></div>`).join('')}
+        </section>
+      </div>
+      <div class="m-side">
+        <h4>Toevoegen aan kaart</h4>
+        <button class="side-btn" data-act="toggleMember" data-id="${c.id}">${ic('user')}${c.members.length?'Verlaten':'Deelnemen'}</button>
+        <button class="side-btn" data-act="labelMenu" data-id="${c.id}">${ic('tag')}Labels</button>
+        <button class="side-btn" data-act="checklistMenu" data-id="${c.id}">${ic('checklist')}Checklist</button>
+        <button class="side-btn" data-act="dateMenu" data-id="${c.id}">${ic('clock')}Datums</button>
+        <label class="side-btn" for="attInput" style="cursor:pointer">${ic('clip')}Bijlage</label>
+        <button class="side-btn" data-act="coverMenu" data-id="${c.id}">${ic('image')}Omslag</button>
+        <h4>Acties</h4>
+        ${loc.archived?'':`<button class="side-btn" data-act="moveMenu" data-id="${c.id}">${ic('move')}Verplaatsen</button>`}
+        <button class="side-btn" data-act="copyCard" data-id="${c.id}">${ic('copy')}Kopiëren</button>
+        <button class="side-btn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}${c.watch?'Niet meer volgen':'Volgen'}</button>
+        ${loc.archived?'':`<button class="side-btn" data-act="archiveCard" data-id="${c.id}">${ic('archive')}Archiveren</button>`}
+        ${deleteConfirm===c.id?`<button class="side-btn danger" data-act="deleteCard" data-id="${c.id}">${ic('trash')}Zeker? Verwijderen</button>`:`<button class="side-btn" data-act="askDeleteCard" data-id="${c.id}">${ic('trash')}Verwijderen</button>`}
+      </div>
+    </div></div></div>`;
+  const back=$('#modalBack'); back.scrollTop=keepScroll;
+  autosize($('#mTitle'));
+  if(descEditing){const d=$('#descInput');d.focus();d.setSelectionRange(d.value.length,d.value.length)}
+  if(editingItem){const i=document.querySelector('[data-ci-edit]');i&&(i.focus(),i.select())}
+  if(pendingFocus){const el=document.getElementById(pendingFocus);el&&el.focus();pendingFocus=null}
+}
+let pendingFocus=null;
+function autosize(t){if(!t)return;t.style.height='auto';t.style.height=t.scrollHeight+'px'}
+
+/* ---------- attachments (files kept in IndexedDB, details on the card) ---------- */
+const FILES=(()=>{let dbp;
+  const open=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('planbord-bestanden',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+  const run=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction('files',mode);const r=fn(t.objectStore('files'));t.oncomplete=()=>res(r.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)}));
+  return {put:(k,v)=>run('readwrite',s=>s.put(v,k)),get:k=>run('readonly',s=>s.get(k)),del:k=>run('readwrite',s=>s.delete(k))};
+})();
+const fmtSize=n=>n<1024?n+' B':n<1048576?Math.round(n/1024)+' kB':(n/1048576).toFixed(1)+' MB';
+const extOf=n=>(n.match(/\.([a-z0-9]{1,5})$/i)||[,''])[1].toLowerCase();
+const isMail=n=>['msg','eml'].includes(extOf(n));
+function decodeWords(v){
+  return v.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g,(m,cs,enc,txt)=>{try{
+    let bytes;
+    if(enc.toUpperCase()==='B'){const b=atob(txt);bytes=Uint8Array.from(b,ch=>ch.charCodeAt(0))}
+    else{const t=txt.replace(/_/g,' ');const out=[];for(let i=0;i<t.length;i++){if(t[i]==='='&&/^[0-9a-f]{2}$/i.test(t.substr(i+1,2))){out.push(parseInt(t.substr(i+1,2),16));i+=2}else out.push(t.charCodeAt(i))}bytes=new Uint8Array(out)}
+    return new TextDecoder(cs.toLowerCase()).decode(bytes)}catch(e){return m}}).replace(/\?=\s+=\?/g,'?==?');
+}
+async function mailInfo(file){
+  if(extOf(file.name)!=='eml') return isMail(file.name)?{subject:file.name.replace(/\.msg$/i,''),from:'',date:''}:null;
+  try{
+    const txt=await file.slice(0,65536).text();
+    const head=txt.split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g,' ');
+    const get=h=>{const m=head.match(new RegExp('^'+h+':\\s*(.*)$','im'));return m?decodeWords(m[1].trim()):''};
+    const from=get('From').replace(/\s*<[^>]+>/,'').replace(/^"|"$/g,'')||get('From');
+    const d=new Date(get('Date'));
+    return {subject:get('Subject')||file.name.replace(/\.eml$/i,''),from,date:isNaN(d)?'':d.getTime()};
+  }catch(e){return {subject:file.name,from:'',date:''}}
+}
+function attHtml(a){
+  const ext=extOf(a.name)||'bestand';
+  const m=a.mail;
+  const title=m?m.subject:a.name;
+  const sub=[m&&m.from?'Van '+m.from:'',m&&m.date?fmtTime(m.date):'',fmtSize(a.size),m?a.name:''].filter(Boolean).join(' · ');
+  return `<div class="att"><div class="att-ic ${m?'mail':''}">${m?'Mail':esc(ext)}</div><div class="att-main"><b>${esc(title)}</b><span>${esc(sub)}</span></div>
+    <button class="btn sm" data-act="openAtt" data-id="${a.id}">Openen</button><button class="icon-btn" data-act="delAtt" data-id="${a.id}" aria-label="Bijlage verwijderen">${ic('trash',14)}</button></div>`;
+}
+async function addFiles(cardId,files){
+  const loc=locate(cardId);if(!loc)return;const c=loc.card;c.attachments=c.attachments||[];
+  let n=0;
+  for(const f of files){
+    const id=uid();
+    try{await FILES.put(id,f)}catch(e){toast(`"${f.name}" kon niet worden opgeslagen. Mogelijk is de opslag van je browser vol.`);continue}
+    const mail=await mailInfo(f);
+    c.attachments.push({id,name:f.name,size:f.size,type:f.type||'',added:Date.now(),mail});
+    log(c,`heeft ${mail?'de mail':'de bijlage'} ${mail?mail.subject:f.name} toegevoegd`);n++;
+  }
+  if(n){commit();toast(n===1?'Bijlage toegevoegd':`${n} bijlagen toegevoegd`)}
+}
+async function titleFromFiles(files){const f=files[0];const m=await mailInfo(f);return m?m.subject:f.name.replace(/\.[^.]+$/,'')}
+function attRefs(id){let n=0;const scan=c=>(c.attachments||[]).forEach(a=>a.id===id&&n++);S.inbox.forEach(scan);S.boards.forEach(b=>{b.lists.forEach(l=>l.cards.forEach(scan));b.archive.lists.forEach(l=>l.cards.forEach(scan));b.archive.cards.forEach(a=>scan(a.card))});return n}
+function dropBlobs(card){(card.attachments||[]).forEach(a=>{if(!attRefs(a.id))FILES.del(a.id).catch(()=>{})})}
+
+/* ---------- popovers ---------- */
+let popEl=null, popAnchor=null, popSkip=null, popKey=null;
+function openPop(anchor,title,html,after){
+  closePop();
+  const p=document.createElement('div');p.className='pop';p.setAttribute('role','dialog');
+  p.innerHTML=`<div class="pop-head"><span>${title}</span><button class="icon-btn" data-act="closePop" aria-label="Sluiten">${ic('x')}</button></div><div class="pop-body">${html}</div>`;
+  document.body.appendChild(p);popEl=p;popAnchor=anchor;popKey=[anchor.dataset.act,anchor.dataset.id];
+  const r=anchor.getBoundingClientRect(),w=p.offsetWidth,h=p.offsetHeight;
+  let left=Math.max(8,Math.min(r.left,innerWidth-w-8)),top=r.bottom+6;
+  if(top+h>innerHeight-8) top=Math.max(8,r.top-h-6);
+  p.style.left=left+'px';p.style.top=top+'px';
+  after&&after(p);
+}
+function closePop(){if(popEl){popEl.remove();popEl=null;popAnchor=null}}
+function repop(){
+  if(!popKey){closePop();return}
+  const [act,id]=popKey;closePop();
+  const a=[...document.querySelectorAll(`[data-act="${act}"]`)].find(x=>x.dataset.id===id&&x.offsetParent);
+  if(a&&ACT[act]) ACT[act](id,a);
+}
+
+/* ---------- mutations ---------- */
+function addCardTo(target,title,extra){
+  const c=mkCard(title,extra);
+  if(target==='inbox') S.inbox.push(c); else findList(target).list.cards.push(c);
+  return c;
+}
+function moveCard(id,drop,beforeId){
+  if(beforeId===id) return;
+  const loc=locate(id); if(!loc||loc.archived) return;
+  const from=loc.list?loc.list.title:'Inbox';
+  const [c]=loc.arr.splice(loc.i,1);
+  let arr,to;
+  if(drop==='inbox'){arr=S.inbox;to='Inbox'} else {const f=findList(drop.replace('list:',''));arr=f.list.cards;to=f.list.title}
+  const idx=beforeId?arr.findIndex(x=>x.id===beforeId):-1;
+  if(idx<0) arr.push(c); else arr.splice(idx,0,c);
+  if(from!==to) log(c,`heeft deze kaart verplaatst van ${from} naar ${to}`);
+}
+function archiveCard(id){
+  const loc=locate(id); if(!loc||loc.archived) return;
+  loc.arr.splice(loc.i,1);
+  const b=loc.board||board();
+  b.archive.cards.unshift({card:loc.card,listId:loc.list?loc.list.id:'inbox'});
+  log(loc.card,'heeft deze kaart gearchiveerd');
+  toast('Kaart gearchiveerd',()=>{restoreCard(id);commit()});
+}
+function restoreCard(id){
+  for(const b of S.boards){const i=b.archive.cards.findIndex(a=>a.card.id===id);if(i<0)continue;
+    const a=b.archive.cards.splice(i,1)[0];
+    if(a.listId==='inbox') S.inbox.push(a.card);
+    else{const l=b.lists.find(l=>l.id===a.listId)||b.lists[0];if(l) l.cards.push(a.card); else S.inbox.push(a.card)}
+    log(a.card,'heeft deze kaart hersteld');return}
+}
+let toastTimer=null;
+function toast(msg,undo){
+  let t=$('#toast');t&&t.remove();clearTimeout(toastTimer);
+  t=document.createElement('div');t.id='toast';t.className='toast';t.setAttribute('role','status');
+  t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button id="toastUndo">Ongedaan maken</button>':''}`;
+  document.body.appendChild(t);
+  if(undo) $('#toastUndo').onclick=()=>{undo();t.remove()};
+  toastTimer=setTimeout(()=>t.remove(),5000);
+}
+function cloneCard(c){const n=JSON.parse(JSON.stringify(c));n.id=uid();n.checklists.forEach(cl=>{cl.id=uid();cl.items.forEach(i=>i.id=uid())});n.comments=[];n.activity=[{text:`heeft deze kaart gekopieerd van ${c.title}`,at:Date.now()}];return n}
+
+/* ---------- actions ---------- */
+const ACT={
+  createMenu(id,a){
+    openPop(a,'Aanmaken',`<label class="fl" for="newBoardTitle">Bordtitel</label><input class="field" id="newBoardTitle" placeholder="Bijv. Projecten">
+      <label class="fl">Achtergrond</label><div class="swatches" id="newBgPick">${Object.keys(BGS).slice(0,10).map((k,i)=>`<button class="swatch ${i===0?'sel':''}" data-bg="${k}" style="background:${BGS[k]}" aria-label="${k}"></button>`).join('')}</div>
+      <div class="btn-row"><button class="btn primary sm" data-act="createBoard">Bord maken</button></div>
+      <div class="menu-sep"></div>
+      <button class="menu-item" data-act="newInboxCard">${ic('inbox')}Kaart in Inbox maken</button>`,p=>{p.querySelector('#newBoardTitle').focus();
+      p.querySelector('#newBgPick').addEventListener('click',e=>{const s=e.target.closest('[data-bg]');if(!s)return;p.querySelectorAll('[data-bg]').forEach(x=>x.classList.toggle('sel',x===s))})});
+  },
+  createBoard(){
+    const t=$('#newBoardTitle').value.trim(); if(!t){$('#newBoardTitle').focus();return}
+    const bg=popEl.querySelector('[data-bg].sel')?.dataset.bg||'paars';
+    const b=mkBoard(t,bg,['Te doen','Bezig','Klaar']); S.boards.push(b); S.current=b.id; S.ui.board=true; drawerOpen=false; filter={labels:new Set(),due:new Set(),status:new Set()};
+    closePop(); commit(); toast(`Bord "${t}" gemaakt`);
+  },
+  newInboxCard(){closePop();S.ui.inbox=true;if(narrow()){S.ui.board=false;S.ui.planner=false}renderAll();$('#inboxAdd')?.focus()},
+  switchBoard(id,a){
+    const rows=[...S.boards].sort((x,y)=>(y.starred-x.starred)).map(b=>`<button class="board-pick ${b.id===S.current?'cur':''}" data-act="goBoard" data-id="${b.id}"><span class="thumb" style="background:${BGS[b.bg]||b.bg}"></span><span class="grow">${esc(b.title)}</span>${b.starred?'<svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="#f5cd47" stroke="#f5cd47" stroke-width="1.8">'+ICONS.star+'</svg>':''}</button>`).join('');
+    openPop(a,'Van bord wisselen',`${rows}<div class="menu-sep"></div><form id="quickBoard" style="display:flex;gap:6px"><input class="field" id="quickBoardTitle" placeholder="Nieuw bord…" aria-label="Naam nieuw bord"><button class="btn primary sm" type="submit">Maken</button></form>`);
+  },
+  goBoard(id){S.current=id;S.ui.board=true;if(narrow()){S.ui.inbox=false;S.ui.planner=false}drawerOpen=false;composer=null;filter={labels:new Set(),due:new Set(),status:new Set()};closePop();commit()},
+  togglePanel(id){
+    if(narrow()){S.ui={inbox:false,planner:false,board:false};S.ui[id]=true}
+    else{S.ui[id]=!S.ui[id];if(!S.ui.inbox&&!S.ui.planner&&!S.ui.board)S.ui.board=true}
+    commit();
+  },
+  editBoardTitle(){editingBoardTitle=true;renderBoard()},
+  toggleStar(){board().starred=!board().starred;commit()},
+  filterMenu(id,a){
+    const b=board();const ch=(set,val,label,extra='')=>`<label class="check-row"><input type="checkbox" data-filter="${set}:${val}" ${filter[set].has(val)?'checked':''}>${extra}${label}</label>`;
+    openPop(a,'Filter',`<h4>Labels</h4>${b.labels.map(l=>ch('labels',l.id,`<span class="lbl wide" style="background:var(--lb-${l.color});flex:1;line-height:28px;border-radius:4px">${esc(l.name||COLOR_NL[l.color])}</span>`)).join('')}
+      <h4>Vervaldatum</h4>${ch('due','none','Geen datum')}${ch('due','late','Verlopen')}${ch('due','soon','Vandaag of morgen')}${ch('due','week','Binnen een week')}
+      <h4>Status</h4>${ch('status','done','Voltooid')}${ch('status','open','Niet voltooid')}
+      <div class="btn-row"><button class="btn sm" data-act="clearFilter">Filters wissen</button></div>`);
+  },
+  clearFilter(){filter={labels:new Set(),due:new Set(),status:new Set()};closePop();renderAll()},
+  openDrawer(){drawerOpen=!drawerOpen;deleteConfirm=null;renderDrawer()},
+  closeDrawer(){drawerOpen=false;renderDrawer()},
+  setBg(id){board().bg=id;commit()},
+  addLabel(){const b=board();const used=b.labels.map(l=>l.color);const c=LABEL_COLORS.find(x=>!used.includes(x))||LABEL_COLORS[b.labels.length%LABEL_COLORS.length];b.labels.push({id:uid(),color:c,name:''});commit()},
+  delLabel(id){const b=board();b.labels=b.labels.filter(l=>l.id!==id);const strip=c=>c.labels=c.labels.filter(x=>x!==id);b.lists.forEach(l=>l.cards.forEach(strip));S.inbox.forEach(strip);b.archive.cards.forEach(a=>strip(a.card));filter.labels.delete(id);commit()},
+  restoreCard(id){restoreCard(id);deleteConfirm=null;commit()},
+  restoreList(id){const b=board();const i=b.archive.lists.findIndex(l=>l.id===id);if(i>=0){b.lists.push(b.archive.lists.splice(i,1)[0]);commit()}},
+  deleteList(id){const b=board();const l=b.archive.lists.find(x=>x.id===id);b.archive.lists=b.archive.lists.filter(x=>x.id!==id);l&&l.cards.forEach(dropBlobs);commit()},
+  copyBoard(){const b=board();const n=JSON.parse(JSON.stringify(b));n.id=uid();n.title=b.title+' (kopie)';n.starred=false;n.archive={cards:[],lists:[]};
+    const map={};n.labels.forEach(l=>{const o=l.id;l.id=uid();map[o]=l.id});
+    n.lists.forEach(l=>{l.id=uid();l.cards=l.cards.map(c=>{const x=cloneCard(c);x.labels=x.labels.map(i=>map[i]).filter(Boolean);return x})});
+    S.boards.push(n);S.current=n.id;drawerOpen=false;commit();toast('Bord gekopieerd')},
+  askDeleteBoard(){deleteConfirm='board';renderDrawer()},
+  cancelConfirm(){deleteConfirm=null;renderAll()},
+  deleteBoard(){const id=S.current;S.boards=S.boards.filter(b=>b.id!==id);S.current=S.boards[0].id;drawerOpen=false;deleteConfirm=null;commit();toast('Bord verwijderd')},
+  addList(){addingList=true;renderBoard();const l=$('#lists');l.scrollLeft=l.scrollWidth},
+  cancelAddList(){addingList=false;renderBoard()},
+  collapse(id){const f=findList(id);f.list.collapsed=!f.list.collapsed;commit()},
+  openComposer(id){composer=id;renderBoard();const z=document.querySelector(`[data-list="${id}"] .cards`);z&&(z.scrollTop=z.scrollHeight)},
+  closeComposer(){composer=null;renderBoard()},
+  listMenu(id,a){
+    const {list}=findList(id); const others=board().lists.filter(l=>l.id!==id);
+    openPop(a,'Lijstacties',`
+      <button class="menu-item" data-act="menuAddCard" data-id="${id}">${ic('plus')}Kaart toevoegen</button>
+      <button class="menu-item" data-act="copyList" data-id="${id}">${ic('copy')}Lijst kopiëren</button>
+      <button class="menu-item" data-act="collapse" data-id="${id}">${ic('collapse')}Lijst inklappen</button>
+      <div class="menu-sep"></div>
+      <h4 style="margin-top:0">Sorteren op</h4>
+      <button class="menu-item" data-act="sortList" data-id="${id}:title">${ic('sort')}Naam (A–Z)</button>
+      <button class="menu-item" data-act="sortList" data-id="${id}:due">${ic('sort')}Vervaldatum</button>
+      <button class="menu-item" data-act="sortList" data-id="${id}:created">${ic('sort')}Nieuwste eerst</button>
+      ${others.length&&list.cards.length?`<div class="menu-sep"></div><h4 style="margin-top:0">Alle kaarten verplaatsen naar</h4>${others.map(o=>`<button class="menu-item" data-act="moveAll" data-id="${id}:${o.id}">${ic('move')}${esc(o.title)}</button>`).join('')}`:''}
+      <div class="menu-sep"></div>
+      <h4 style="margin-top:0">Lijstkleur</h4>
+      <div class="swatches">${LIST_COLORS.map(c=>`<button class="swatch ${list.color===c?'sel':''}" style="background:${c==='none'?'var(--list-bg)':'var(--lc-'+c+')'};${c==='none'?'box-shadow:inset 0 0 0 1px var(--border)':''}" data-act="listColor" data-id="${id}:${c}" aria-label="${COLOR_NL[c]}" title="${COLOR_NL[c]}"></button>`).join('')}</div>
+      <div class="menu-sep"></div>
+      ${list.cards.length?`<button class="menu-item" data-act="archiveAllCards" data-id="${id}">${ic('archive')}Alle kaarten in deze lijst archiveren</button>`:''}
+      <button class="menu-item" data-act="archiveList" data-id="${id}">${ic('archive')}Lijst archiveren</button>`);
+  },
+  menuAddCard(id){closePop();ACT.openComposer(id)},
+  copyList(id){const b=board();const i=b.lists.findIndex(l=>l.id===id);const l=b.lists[i];const n={...JSON.parse(JSON.stringify(l)),id:uid(),title:l.title+' (kopie)'};n.cards=l.cards.map(cloneCard);b.lists.splice(i+1,0,n);closePop();commit()},
+  sortList(v){const [id,k]=v.split(':');const l=findList(id).list;
+    if(k==='title') l.cards.sort((a,b)=>a.title.localeCompare(b.title,'nl'));
+    if(k==='due') l.cards.sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
+    if(k==='created') l.cards.sort((a,b)=>b.created-a.created);
+    closePop();commit()},
+  moveAll(v){const [from,to]=v.split(':');const f=findList(from).list,t=findList(to).list;f.cards.forEach(c=>log(c,`heeft deze kaart verplaatst van ${f.title} naar ${t.title}`));t.cards.push(...f.cards);f.cards=[];closePop();commit()},
+  listColor(v){const [id,c]=v.split(':');findList(id).list.color=c;commit();repop()},
+  archiveAllCards(id){const l=findList(id).list;const b=board();l.cards.forEach(c=>{log(c,'heeft deze kaart gearchiveerd');b.archive.cards.unshift({card:c,listId:l.id})});l.cards=[];closePop();commit();toast('Kaarten gearchiveerd')},
+  archiveList(id){const b=board();const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);b.archive.lists.unshift(l);closePop();commit();toast('Lijst gearchiveerd',()=>{const j=b.archive.lists.indexOf(l);if(j>=0){b.archive.lists.splice(j,1);b.lists.splice(i,0,l);commit()}})},
+  toggleDone(id){const c=locate(id).card;c.done=!c.done;log(c,c.done?'heeft deze kaart als voltooid gemarkeerd':'heeft deze kaart als niet voltooid gemarkeerd');commit()},
+  openCard(id){modalId=id;descEditing=false;editingItem=null;deleteConfirm=null;closePop();renderModal()},
+  closeModal(){modalId=null;descEditing=false;deleteConfirm=null;closePop();renderModal()},
+  editDesc(){descEditing=true;renderModal()},
+  cancelDesc(){descEditing=false;renderModal()},
+  saveDesc(id){const c=locate(id).card;c.desc=$('#descInput').value.trim();descEditing=false;commit()},
+  toggleMember(id){const c=locate(id).card;c.members=c.members.length?[]:['LE'];commit()},
+  toggleWatch(id){const c=locate(id).card;c.watch=!c.watch;commit()},
+  labelMenu(id,a){
+    const loc=locate(id),b=loc.board||board(),c=loc.card;
+    openPop(a,'Labels',`${b.labels.map(l=>`<div class="lbl-row"><input type="checkbox" data-card-label="${id}:${l.id}" ${c.labels.includes(l.id)?'checked':''} aria-label="${esc(l.name||COLOR_NL[l.color])}"><button class="chip" style="background:var(--lb-${l.color})" data-act="toggleCardLabel" data-id="${id}:${l.id}">${esc(l.name)}</button></div>`).join('')}
+      <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Labelnamen wijzig je in het bordmenu (…).</p>`);
+  },
+  toggleCardLabel(v){const [id,lid]=v.split(':');const c=locate(id).card;c.labels=c.labels.includes(lid)?c.labels.filter(x=>x!==lid):[...c.labels,lid];commit();repop()},
+  dateMenu(id,a){const c=locate(id).card;
+    openPop(a,'Datums',`<label class="fl" for="dueInput">Vervaldatum</label><input type="date" class="field" id="dueInput" value="${c.due||iso(new Date())}">
+      <div class="btn-row"><button class="btn primary sm" data-act="saveDue" data-id="${id}">Opslaan</button>${c.due?`<button class="btn sm" data-act="clearDue" data-id="${id}">Verwijderen</button>`:''}</div>`,p=>p.querySelector('#dueInput').focus())},
+  saveDue(id){const v=$('#dueInput').value;if(!v)return;const c=locate(id).card;c.due=v;log(c,`heeft de vervaldatum ingesteld op ${fmtDue(v)}`);closePop();commit()},
+  clearDue(id){const c=locate(id).card;c.due=null;closePop();commit()},
+  coverMenu(id,a){const c=locate(id).card;
+    openPop(a,'Omslag',`<div class="swatches">${LABEL_COLORS.map(k=>`<button class="swatch ${c.cover===k?'sel':''}" style="background:var(--lb-${k})" data-act="setCover" data-id="${id}:${k}" aria-label="${COLOR_NL[k]}"></button>`).join('')}</div>
+      ${c.cover?`<div class="btn-row"><button class="btn sm" data-act="setCover" data-id="${id}:">Omslag verwijderen</button></div>`:''}`)},
+  setCover(v){const [id,k]=v.split(':');locate(id).card.cover=k||null;commit();repop()},
+  checklistMenu(id,a){openPop(a,'Checklist toevoegen',`<form id="clForm" data-id="${id}"><label class="fl" for="clTitle">Titel</label><input class="field" id="clTitle" value="Checklist"><div class="btn-row"><button class="btn primary sm" type="submit">Toevoegen</button></div></form>`,p=>{const i=p.querySelector('#clTitle');i.focus();i.select()})},
+  delChecklist(clid){const c=locate(modalId).card;c.checklists=c.checklists.filter(x=>x.id!==clid);commit()},
+  editItem(id){editingItem=id;renderModal()},
+  delItem(v){const [clid,iid]=v.split(':');const cl=locate(modalId).card.checklists.find(x=>x.id===clid);cl.items=cl.items.filter(i=>i.id!==iid);commit()},
+  delComment(id){const c=locate(modalId).card;c.comments=c.comments.filter(x=>x.id!==id);commit()},
+  moveMenu(id,a){
+    const loc=locate(id);
+    const bOpts=S.boards.map(b=>`<option value="${b.id}" ${b.id===(loc.board||board()).id?'selected':''}>${esc(b.title)}</option>`).join('');
+    openPop(a,'Kaart verplaatsen',`<label class="fl" for="mvBoard">Bord</label><select class="field" id="mvBoard">${bOpts}</select>
+      <label class="fl" for="mvList">Lijst</label><select class="field" id="mvList"></select>
+      <label class="fl" for="mvPos">Positie</label><select class="field" id="mvPos"></select>
+      <div class="btn-row"><button class="btn primary sm" data-act="doMove" data-id="${id}">Verplaatsen</button>${loc.list?`<button class="btn sm" data-act="toInbox" data-id="${id}">Naar Inbox</button>`:''}</div>`,p=>{
+      const fill=()=>{const b=S.boards.find(x=>x.id===p.querySelector('#mvBoard').value);const ls=p.querySelector('#mvList');
+        ls.innerHTML=b.lists.map(l=>`<option value="${l.id}" ${loc.list&&l.id===loc.list.id?'selected':''}>${esc(l.title)}</option>`).join('');fillPos()};
+      const fillPos=()=>{const f=findList(p.querySelector('#mvList').value);const ps=p.querySelector('#mvPos');if(!f){ps.innerHTML='';return}
+        const n=f.list.cards.filter(c=>c.id!==id).length;let o='';for(let i=1;i<=n+1;i++)o+=`<option value="${i-1}" ${f.list.cards[i-1]?.id===id||(i===n+1&&!f.list.cards.some(c=>c.id===id))?'selected':''}>${i}</option>`;ps.innerHTML=o};
+      p.querySelector('#mvBoard').onchange=fill;p.querySelector('#mvList').onchange=fillPos;fill();});
+  },
+  doMove(id){const lid=$('#mvList').value;if(!lid)return;const pos=+$('#mvPos').value;const f=findList(lid);const rest=f.list.cards.filter(c=>c.id!==id);moveCard(id,'list:'+lid,rest[pos]?.id||null);closePop();commit()},
+  toInbox(id){moveCard(id,'inbox',null);closePop();commit()},
+  copyCard(id){const loc=locate(id);const n=cloneCard(loc.card);n.title=loc.card.title+' (kopie)';if(loc.arr)loc.arr.splice(loc.i+1,0,n);else(board().lists[0]?.cards||S.inbox).push(n);modalId=n.id;commit();toast('Kaart gekopieerd')},
+  archiveCard(id){archiveCard(id);modalId=null;commit()},
+  askDeleteCard(id){deleteConfirm=id;renderModal()},
+  deleteCard(id){const loc=locate(id);if(loc.archived)loc.board.archive.cards.splice(loc.i,1);else loc.arr.splice(loc.i,1);dropBlobs(loc.card);modalId=null;deleteConfirm=null;commit();toast('Kaart verwijderd')},
+  async openAtt(id){
+    const a=locate(modalId).card.attachments.find(x=>x.id===id);
+    let blob;try{blob=await FILES.get(id)}catch(e){}
+    if(!blob){toast('Dit bestand staat niet op dit apparaat. Bijlagen worden per apparaat bewaard.');return}
+    const url=URL.createObjectURL(blob);
+    if(/^image\/|pdf|^text\//.test(a.type)){const w=window.open(url,'_blank');if(w)return}
+    const l=document.createElement('a');l.href=url;l.download=a.name;document.body.appendChild(l);l.click();l.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  },
+  delAtt(id){const c=locate(modalId).card;const a=c.attachments.find(x=>x.id===id);c.attachments=c.attachments.filter(x=>x.id!==id);if(!attRefs(id))FILES.del(id).catch(()=>{});log(c,`heeft de bijlage ${a.mail?a.mail.subject:a.name} verwijderd`);commit()},
+  weekPrev(){weekStart.setDate(weekStart.getDate()-7);renderPlanner()},
+  weekNext(){weekStart.setDate(weekStart.getDate()+7);renderPlanner()},
+  weekToday(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));weekStart=d;renderPlanner()},
+  dayAdd(k){dayAdding=dayAdding===k?null:k;renderPlanner()},
+  closePop(){closePop()}
+};
+
+/* ---------- events ---------- */
+let justDragged=false;
+document.addEventListener('pointerdown',e=>{
+  if(popEl&&!popEl.contains(e.target)){const a=e.target.closest('[data-act]');if(a&&a===popAnchor)popSkip=a;closePop()}
+},true);
+document.addEventListener('click',e=>{
+  if(justDragged) return;
+  const a=e.target.closest('[data-act]');
+  if(a){
+    if(a===popSkip){popSkip=null;return}
+    const fn=ACT[a.dataset.act]; if(fn){e.preventDefault();fn(a.dataset.id,a,e)} return;
+  }
+  const title=e.target.closest('[data-title-of]');
+  if(title){editingListTitle=title.dataset.titleOf;renderBoard();return}
+  const card=e.target.closest('[data-card]');
+  if(card&&!e.target.closest('.modal')){ACT.openCard(card.dataset.card)}
+});
+document.addEventListener('mousedown',e=>{if(e.target.id==='modalBack')ACT.closeModal()});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(popEl){closePop();return}
+    if(editingItem){editingItem=null;renderModal();return}
+    if(descEditing){descEditing=false;renderModal();return}
+    if(modalId){ACT.closeModal();return}
+    if(drawerOpen){ACT.closeDrawer();return}
+    if(composer){composer=null;renderAll();return}
+    if(addingList){addingList=false;renderBoard();return}
+    if(editingListTitle||editingBoardTitle){editingListTitle=null;editingBoardTitle=false;renderBoard();return}
+  }
+  const t=e.target;
+  if(e.key==='Enter'&&!e.shiftKey){
+    if(t.matches('[data-composer],#inboxAdd')){e.preventDefault();t.form.requestSubmit();return}
+    if(t.id==='mTitle'){e.preventDefault();t.blur();return}
+    if(t.matches('[data-list-title-input],#boardTitleInput')){e.preventDefault();t.blur();return}
+    if(t.matches('[data-ci-edit]')){e.preventDefault();t.blur();return}
+    if(t.matches('[data-card]')){e.preventDefault();ACT.openCard(t.dataset.card);return}
+    if(t.matches('.desc-view')){e.preventDefault();ACT.editDesc();return}
+  }
+  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){
+    if(t.id==='descInput'){e.preventDefault();ACT.saveDesc(modalId)}
+    if(t.id==='commentInput'){e.preventDefault();t.form.requestSubmit()}
+  }
+});
+document.addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target;
+  if(f.dataset.composerForm){const id=f.dataset.composerForm;const t=f.querySelector('textarea');const v=t.value.trim();if(!v){t.focus();return}addCardTo(id,v);commit();const z=document.querySelector(`[data-list="${id}"] .cards`);z&&(z.scrollTop=z.scrollHeight);return}
+  if(f.id==='inboxForm'){const t=$('#inboxAdd');const v=t.value.trim();if(!v)return;t.value='';addCardTo('inbox',v);commit();$('#inboxAdd').focus();return}
+  if(f.id==='addListForm'){const v=$('#addListInput').value.trim();if(!v){$('#addListInput').focus();return}board().lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=$('#lists');l.scrollLeft=l.scrollWidth;return}
+  if(f.id==='commentForm'){const t=$('#commentInput');const v=t.value.trim();if(!v)return;t.value='';locate(modalId).card.comments.push({id:uid(),text:v,at:Date.now()});commit();return}
+  if(f.id==='clForm'){const c=locate(f.dataset.id).card;const t=$('#clTitle').value.trim()||'Checklist';const cl={id:uid(),title:t,items:[]};c.checklists.push(cl);closePop();pendingFocus='ciadd-'+cl.id;commit();return}
+  if(f.dataset.ciAdd){const cl=locate(modalId).card.checklists.find(x=>x.id===f.dataset.ciAdd);const i=f.querySelector('input');const v=i.value.trim();if(!v)return;cl.items.push({id:uid(),text:v,done:false});pendingFocus='ciadd-'+cl.id;commit();return}
+  if(f.id==='quickBoard'){const v=$('#quickBoardTitle').value.trim();if(!v)return;const b=mkBoard(v,'oceaan',['Te doen','Bezig','Klaar']);S.boards.push(b);closePop();ACT.goBoard(b.id);return}
+  if(f.dataset.dayForm){const k=f.dataset.dayForm;const v=f.querySelector('input').value.trim();if(!v)return;addCardTo('inbox',v,{due:k});dayAdding=null;commit();toast('Kaart toegevoegd aan je Inbox');return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='attInput'){const fs=[...t.files];t.value='';if(fs.length)addFiles(modalId,fs);return}
+  if(t.dataset.filter){const [set,val]=t.dataset.filter.split(':');t.checked?filter[set].add(val):filter[set].delete(val);renderAll();return}
+  if(t.dataset.cardLabel){ACT.toggleCardLabel(t.dataset.cardLabel);return}
+  if(t.dataset.ciToggle){const [clid,iid]=t.dataset.ciToggle.split(':');const it=locate(modalId).card.checklists.find(x=>x.id===clid).items.find(i=>i.id===iid);it.done=t.checked;commit();return}
+  if(t.dataset.labelName){const l=board().labels.find(x=>x.id===t.dataset.labelName);l.name=t.value.trim();save();renderInbox();renderPlanner();renderBoard(true);renderModal();return}
+});
+document.addEventListener('focusout',e=>{
+  const t=e.target;
+  if(t.id==='mTitle'){const c=locate(modalId)?.card;const v=t.value.trim();if(c&&v&&v!==c.title){c.title=v;commit()}else if(c)t.value=c.title;return}
+  if(t.matches('[data-list-title-input]')){const f=findList(t.dataset.listTitleInput);const v=t.value.trim();if(f&&v)f.list.title=v;editingListTitle=null;commit();return}
+  if(t.id==='boardTitleInput'){const v=t.value.trim();if(v)board().title=v;editingBoardTitle=false;commit();return}
+  if(t.matches('[data-ci-edit]')){const [clid,iid]=t.dataset.ciEdit.split(':');const c=locate(modalId)?.card;const it=c&&c.checklists.find(x=>x.id===clid)?.items.find(i=>i.id===iid);const v=t.value.trim();if(it&&v)it.text=v;editingItem=null;commit();return}
+  if(t.matches('[data-composer]')){setTimeout(()=>{const r=document.activeElement;if(composer===t.dataset.composer&&!(r&&r.closest&&r.closest(`[data-composer-form="${composer}"]`))&&!t.value.trim()){composer=null;renderBoard()}},120);return}
+  if(t.matches('[data-day-input]')){setTimeout(()=>{if(dayAdding&&!t.value.trim()){dayAdding=null;renderPlanner()}},120)}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='q'){q=t.value;renderInbox();renderPlanner();renderBoard();return}
+  if(t.id==='mTitle'||t.id==='inboxAdd'||t.matches('[data-composer]'))autosize(t);
+});
+window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>{closePop();renderAll()},150)});
+
+/* ---------- files and Outlook mails dropped from outside the app ---------- */
+const hasFiles=e=>e.dataTransfer&&[...e.dataTransfer.types].includes('Files');
+function fileTarget(el){
+  if(!el||!el.closest) return null;
+  if(modalId&&el.closest('.modal')) return {kind:'card',id:modalId,el:el.closest('.modal')};
+  if(modalId) return null;
+  const c=el.closest('[data-card]');if(c) return {kind:'card',id:c.dataset.card,el:c};
+  const d=el.closest('.day');if(d) return {kind:'day',id:d.querySelector('[data-drop]').dataset.drop.slice(4),el:d};
+  const l=el.closest('.list[data-list]');if(l) return {kind:'list',id:l.dataset.list,el:l};
+  const ip=el.closest('#inboxPanel');if(ip) return {kind:'inbox',el:ip};
+  return null;
+}
+let hlEl=null,hlTimer=null;
+function setHl(el){if(hlEl!==el){hlEl&&hlEl.classList.remove('drop-hl');hlEl=el;el&&el.classList.add('drop-hl')}clearTimeout(hlTimer);hlTimer=setTimeout(()=>setHl(null),200)}
+document.addEventListener('dragover',e=>{
+  if(!hasFiles(e)) return;
+  e.preventDefault();const t=fileTarget(e.target);
+  e.dataTransfer.dropEffect=t?'copy':'none';setHl(t&&t.el);
+});
+document.addEventListener('drop',async e=>{
+  if(!hasFiles(e)) return;
+  e.preventDefault();setHl(null);
+  const t=fileTarget(e.target);if(!t) return;
+  const files=[...e.dataTransfer.files];
+  if(!files.length){toast('Er kwam geen bestand mee. Sleep de mail eerst naar je bureaublad en dan hierheen.');return}
+  if(t.kind==='card'){addFiles(t.id,files);return}
+  const title=await titleFromFiles(files);
+  const c=addCardTo(t.kind==='list'?t.id:'inbox',title,t.kind==='day'?{due:t.id}:undefined);
+  await addFiles(c.id,files);commit();
+});
+
+/* ---------- drag & drop (pointer based: mouse, pen and touch long-press) ---------- */
+let P=null;
+document.addEventListener('pointerdown',e=>{
+  if(e.button!==0||P) return;
+  const t=e.target;
+  if(t.closest('button,input,textarea,select,a,.modal,.pop,.drawer')) return;
+  const cardEl=t.closest('[data-card]');
+  const head=!cardEl&&t.closest('.list-head');
+  if(!cardEl&&!head) return;
+  P={x:e.clientX,y:e.clientY,el:cardEl||head.closest('.list'),type:cardEl?'card':'list',pid:e.pointerId,touch:e.pointerType==='touch',started:false};
+  P.ready=!P.touch;
+  if(P.touch) P.timer=setTimeout(()=>{if(P&&!P.started){P.ready=true;navigator.vibrate&&navigator.vibrate(15);beginDrag(P.x,P.y)}},320);
+});
+document.addEventListener('pointermove',e=>{
+  if(!P||e.pointerId!==P.pid) return;
+  if(!P.started){
+    if(Math.hypot(e.clientX-P.x,e.clientY-P.y)<6) return;
+    if(!P.ready){clearTimeout(P.timer);P=null;return}
+    beginDrag(e.clientX,e.clientY);
+  }
+  moveDrag(e.clientX,e.clientY);
+});
+document.addEventListener('touchmove',e=>{if(P&&P.started){e.preventDefault();const t=e.touches[0];moveDrag(t.clientX,t.clientY)}},{passive:false});
+document.addEventListener('pointerup',e=>{if(!P)return;clearTimeout(P.timer);if(P.started)endDrag();else P=null});
+document.addEventListener('touchend',()=>{if(P&&P.started)endDrag()});
+document.addEventListener('pointercancel',()=>{if(P&&!P.started){clearTimeout(P.timer);P=null}});
+document.addEventListener('contextmenu',e=>{if(P&&P.touch)e.preventDefault()});
+
+function beginDrag(x,y){
+  const p=P;p.started=true;closePop();
+  const el=p.el,r=el.getBoundingClientRect();
+  p.offX=x-r.left;p.offY=y-r.top;
+  const g=el.cloneNode(true);g.classList.add('ghost');g.style.width=r.width+'px';if(p.type==='list')g.style.height=Math.min(r.height,innerHeight*.7)+'px';g.style.overflow='hidden';
+  document.body.appendChild(g);p.ghost=g;
+  const ph=document.createElement('div');ph.className=p.type==='card'?'ph-card':'ph-list';
+  ph.style.height=(p.type==='card'?r.height:r.height)+'px';
+  el.after(ph);el.classList.add('drag-src');p.ph=ph;
+  document.body.classList.add('dragging');
+  p.raf=requestAnimationFrame(autoScroll);
+  moveDrag(x,y);
+}
+function moveDrag(x,y){
+  const p=P;if(!p||!p.started)return;p.lx=x;p.ly=y;
+  p.ghost.style.transform=`translate(${x-p.offX}px,${y-p.offY}px) rotate(3deg)`;
+  const under=document.elementFromPoint(x,y);if(!under)return;
+  if(p.type==='card'){
+    let zone=under.closest('[data-drop]');
+    if(!zone){const l=under.closest('.list:not(.collapsed)');if(l)zone=l.querySelector('[data-drop]');else{const d=under.closest('.day');if(d)zone=d.querySelector('[data-drop]');else{const ip=under.closest('#inboxPanel');if(ip)zone=ip.querySelector('[data-drop]')}}}
+    if(!zone)return;
+    const kids=[...zone.querySelectorAll(':scope > [data-card]:not(.drag-src)')];
+    let before=null;for(const k of kids){const r=k.getBoundingClientRect();if(y<r.top+r.height/2){before=k;break}}
+    if(before){if(p.ph.nextElementSibling!==before)zone.insertBefore(p.ph,before)}else if(zone.lastElementChild!==p.ph)zone.appendChild(p.ph);
+    p.zone=zone;
+  }else{
+    const row=$('#lists');
+    const ls=[...row.querySelectorAll(':scope > .list:not(.drag-src)')];
+    let before=null;for(const l of ls){const r=l.getBoundingClientRect();if(x<r.left+r.width/2){before=l;break}}
+    const tgt=before||$('#addList');if(p.ph.nextElementSibling!==tgt)row.insertBefore(p.ph,tgt);
+  }
+}
+function autoScroll(){
+  if(!P||!P.started)return;
+  const x=P.lx,y=P.ly,E=60,sp=14;
+  const row=$('#lists'),r=row.getBoundingClientRect();
+  if(y>r.top&&y<r.bottom){if(x>r.right-E)row.scrollLeft+=sp;else if(x<r.left+E)row.scrollLeft-=sp}
+  if(P.type==='card'&&P.zone){const sc=P.zone.closest('.cards,.panel-body')||P.zone;const zr=sc.getBoundingClientRect();if(y>zr.bottom-E&&y<zr.bottom+20)sc.scrollTop+=sp;else if(y<zr.top+E&&y>zr.top-20)sc.scrollTop-=sp}
+  P.raf=requestAnimationFrame(autoScroll);
+}
+function endDrag(){
+  const p=P;P=null;cancelAnimationFrame(p.raf);
+  const ph=p.ph;
+  let n=ph.nextElementSibling;while(n&&n.classList.contains('drag-src'))n=n.nextElementSibling;
+  if(p.type==='card'){
+    const zone=ph.parentElement&&ph.parentElement.closest('[data-drop]');const drop=zone&&zone.dataset.drop;const id=p.el.dataset.card;
+    if(drop&&drop.startsWith('day:')){const c=locate(id).card;const k=drop.slice(4);if(c.due!==k){c.due=k;log(c,`heeft de vervaldatum ingesteld op ${fmtDue(k)}`)}}
+    else if(drop){
+      // a card dragged from the planner onto the board moves; dropping it back where it came from is a no-op
+      const nid=n&&n.dataset&&n.dataset.card||null;
+      if(p.el.nextElementSibling!==ph) moveCard(id,drop,nid);
+    }
+  }else{
+    const b=board();const id=p.el.dataset.list;const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);
+    const nid=n&&n.dataset&&n.dataset.list;const j=nid?b.lists.findIndex(x=>x.id===nid):-1;
+    if(j<0)b.lists.push(l);else b.lists.splice(j,0,l);
+  }
+  p.ghost.remove();ph.remove();p.el.classList.remove('drag-src');document.body.classList.remove('dragging');
+  justDragged=true;setTimeout(()=>justDragged=false,50);
+  commit();
+}
+
+renderAll();
+})();
+</script>
+
+<script>
+// App-functies: offline werken en een knop "Installeren" zodra de browser dat aanbiedt.
+if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+(function(){
+  let deferred=null;
+  const btn=document.createElement('button');
+  btn.className='btn';btn.hidden=true;btn.textContent='Installeren';btn.title='Planbord als app installeren';
+  document.querySelector('.top .btn.primary').before(btn);
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;btn.hidden=false});
+  btn.addEventListener('click',async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice.catch(()=>{});deferred=null;btn.hidden=true});
+  addEventListener('appinstalled',()=>{btn.hidden=true});
+})();
+</script>
+</body>
+</html>

@@ -130,6 +130,32 @@ body.dragging .archive-box{border-color:var(--accent);color:var(--accent)}
 .arch-count{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--hover-strong);font-size:11px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .arch-count:empty{display:none}
 .pop.wide{width:400px}
+.arch-page{position:absolute;inset:0;z-index:150;background:var(--bg);display:flex;flex-direction:column;min-height:0}
+.ap-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 10px;border-bottom:1px solid var(--border)}
+.ap-head h2{margin:0;font-size:20px;display:flex;align-items:center;gap:8px}
+.ap-head h2 small{font-size:13px;font-weight:500;color:var(--muted)}
+.ap-head .field{width:220px;max-width:100%;margin:0}
+.ap-head select.field{width:auto}
+.ap-head .sp{flex:1}
+.ap-body{flex:1;overflow-y:auto;padding:4px 20px 96px}
+.ap-day{margin-top:14px}
+.ap-day h3{position:sticky;top:0;z-index:1;background:var(--bg);margin:0;padding:10px 0 8px;font-size:15px;display:flex;align-items:baseline;gap:8px;border-bottom:2px solid var(--border)}
+.ap-day h3 span{font-size:13px;font-weight:500;color:var(--muted)}
+.ap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;padding-top:10px}
+.ap-tile{background:var(--card-bg);box-shadow:var(--card-shadow);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.ap-tile.finished{background:var(--done-bg)}
+.ap-tile .lbls{display:flex;flex-wrap:wrap;gap:4px}
+.ap-tile .lbl{height:8px;min-width:40px;border-radius:4px}
+.ap-tile b{font-weight:600;overflow-wrap:anywhere;cursor:pointer;display:flex;gap:6px;align-items:flex-start}
+.ap-tile b:hover{text-decoration:underline}
+.ap-tile b .ic{flex:none;margin-top:2px;color:var(--ok)}
+.ap-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
+.ap-acts{display:flex;gap:6px;align-items:center;margin-top:auto;padding-top:4px}
+.ap-acts .icon-btn{width:28px;height:28px;margin-left:auto}
+.ap-kind{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.ap-empty{color:var(--muted);text-align:center;padding:60px 20px}
+.archive-box.on{background:var(--accent-soft);color:var(--accent);border-style:solid;border-color:var(--accent)}
+@media (max-width:700px){.ap-head{padding:10px 12px}.ap-body{padding:4px 12px 96px}.ap-head .sp{display:none}.ap-head [data-act=closeArchive]{order:1;margin-left:auto}.ap-head select.field{order:2;flex:1}.ap-head #archSearch{order:3;width:100%}}
 .arch-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border)}
 .arch-row .grow{flex:1;min-width:0}
 .arch-row .grow b{display:block;font-weight:600;overflow-wrap:anywhere;cursor:pointer}
@@ -685,19 +711,54 @@ function renderAll(){
   renderInbox();renderPlanner();renderBoard();renderDock();renderModal();renderArchiveCount();
 }
 function allArchived(){return S.boards.flatMap(b=>b.archive.cards.map(a=>({...a,board:b})))}
-function renderArchiveCount(){const n=allArchived().length;$('#archCount').textContent=n?String(n):'';if(popEl&&popEl.querySelector('#archBody'))fillArchive()}
+function renderArchiveCount(){const n=allArchived().length;$('#archCount').textContent=n?String(n):'';renderArchPage()}
 let archQ='',archConfirm=null;
+let archPage=false,archBoard='';
+const DAGVOL=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const MAANDVOL=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+function archAt(a){if(a.at)return a.at;const l=(a.card.activity||[]).filter(x=>/gearchiveerd/.test(x.text)).sort((x,y)=>y.at-x.at)[0];return l?l.at:0}
+function dayKey(t){if(!t)return 'onbekend';const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+function dayTitle(k){if(k==='onbekend')return ['Eerder gearchiveerd','datum onbekend'];
+  const [y,m,dd]=k.split('-').map(Number);const d=new Date(y,m-1,dd);const t=new Date();t.setHours(0,0,0,0);const diff=Math.round((t-d)/864e5);
+  const full=`${DAGVOL[d.getDay()]} ${dd} ${MAANDVOL[m-1]}${y!==t.getFullYear()?' '+y:''}`;
+  return diff===0?['Vandaag',full]:diff===1?['Gisteren',full]:[full.charAt(0).toUpperCase()+full.slice(1),'']}
 function fillArchive(){
-  const body=popEl&&popEl.querySelector('#archBody');if(!body)return;
-  const qq=archQ.toLowerCase();
-  const items=allArchived().filter(a=>!qq||a.card.title.toLowerCase().includes(qq));
-  const lists=S.boards.flatMap(b=>b.archive.lists.map(l=>({l,b}))).filter(x=>!qq||x.l.title.toLowerCase().includes(qq));
-  const listName=a=>a.listId==='inbox'?'Inbox':(a.board.lists.find(l=>l.id===a.listId)||{}).title||'verwijderde lijst';
-  body.innerHTML=(items.length?items.map(a=>`<div class="arch-row"><div class="grow"><b data-act="openCard" data-id="${a.card.id}">${esc(a.card.title)}</b><span>${esc(a.board.title)} · ${esc(listName(a))}</span></div>
-      <button class="btn sm" data-act="archRestore" data-id="${a.card.id}">Herstellen</button>
-      ${archConfirm===a.card.id?`<button class="btn danger sm" data-act="archDelete" data-id="${a.card.id}">Verwijderen</button>`:`<button class="icon-btn" data-act="archAskDelete" data-id="${a.card.id}" aria-label="Definitief verwijderen" title="Definitief verwijderen">${ic('trash',14)}</button>`}</div>`).join('')
-    :`<p style="font-size:13px;color:var(--muted);margin:8px 0">${qq?'Niets gevonden.':'Het archief is leeg. Sleep een kaart naar de archiefdoos bovenin om hem te archiveren.'}</p>`)
-    +(lists.length?`<h4>Gearchiveerde lijsten</h4>`+lists.map(({l,b})=>`<div class="arch-row"><div class="grow"><b style="cursor:default">${esc(l.title)}</b><span>${esc(b.title)} · ${l.cards.length} kaarten</span></div><button class="btn sm" data-act="archRestoreList" data-id="${b.id}:${l.id}">Herstellen</button></div>`).join(''):'');
+  const page=$('#archPage');if(!page)return;
+  const body=page.querySelector('.ap-body');const qq=archQ.toLowerCase();
+  const listName=a=>a.listId==='inbox'?'Inbox':(a.board.lists.find(l=>l.id===a.listId)||a.board.archive.lists.find(l=>l.id===a.listId)||{}).title||'verwijderde lijst';
+  const entries=[...allArchived().filter(a=>(!archBoard||a.board.id===archBoard)&&(!qq||a.card.title.toLowerCase().includes(qq))).map(a=>({kind:'card',a,at:archAt(a)})),
+    ...S.boards.filter(b=>!archBoard||b.id===archBoard).flatMap(b=>b.archive.lists.filter(l=>!qq||l.title.toLowerCase().includes(qq)).map(l=>({kind:'list',l,b,at:l.archivedAt||0})))]
+    .sort((x,y)=>y.at-x.at);
+  const total=allArchived().length+S.boards.reduce((n,b)=>n+b.archive.lists.length,0);
+  page.querySelector('#apCount').textContent=total?`${total} ${total===1?'item':'items'}`:'';
+  if(!entries.length){body.innerHTML=`<p class="ap-empty">${qq||archBoard?'Niets gevonden.':'Het archief is leeg.<br>Sleep een kaart naar de archiefdoos bovenin om hem te archiveren.'}</p>`;return}
+  const groups=new Map();entries.forEach(e=>{const k=dayKey(e.at);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e)});
+  const time=t=>t?`${pad(new Date(t).getHours())}:${pad(new Date(t).getMinutes())}`:'';
+  const tile=e=>{
+    if(e.kind==='list')return `<div class="ap-tile"><span class="ap-kind">Lijst</span><b style="cursor:default;text-decoration:none">${esc(e.l.title)}</b>
+      <div class="ap-meta"><span>${esc(e.b.title)}</span><span>${e.l.cards.length} ${e.l.cards.length===1?'kaart':'kaarten'}</span>${e.at?`<span>om ${time(e.at)}</span>`:''}</div>
+      <div class="ap-acts"><button class="btn sm" data-act="archRestoreList" data-id="${e.b.id}:${e.l.id}">Herstellen</button></div></div>`;
+    const a=e.a,c=a.card,lbls=c.labels.map(id=>labelOf(a.board,id)).filter(Boolean);
+    const items=(c.checklists||[]).flatMap(x=>x.items),done=items.filter(i=>i.done).length;
+    const finished=c.done||(items.length>0&&done===items.length);
+    return `<div class="ap-tile ${finished?'finished':''}">${lbls.length?`<div class="lbls">${lbls.map(l=>`<span class="lbl" style="background:${lb(l.color)}" title="${esc(l.name||cname(l.color))}"></span>`).join('')}</div>`:''}
+      <b data-act="openCard" data-id="${c.id}">${finished?ic('circleCheck',16):''}<span>${esc(c.title)}</span></b>
+      <div class="ap-meta"><span>${esc(a.board.title)} · ${esc(listName(a))}</span>${items.length?`<span>${done}/${items.length} stappen</span>`:''}${(c.attachments||[]).length?`<span>${c.attachments.length} bijlage${c.attachments.length===1?'':'n'}</span>`:''}${e.at?`<span>om ${time(e.at)}</span>`:''}</div>
+      <div class="ap-acts"><button class="btn sm" data-act="archRestore" data-id="${c.id}">Herstellen</button>
+      ${archConfirm===c.id?`<button class="btn danger sm" data-act="archDelete" data-id="${c.id}" style="margin-left:auto">Definitief verwijderen</button>`:`<button class="icon-btn" data-act="archAskDelete" data-id="${c.id}" aria-label="Definitief verwijderen" title="Definitief verwijderen">${ic('trash',14)}</button>`}</div></div>`};
+  body.innerHTML=[...groups].map(([k,list])=>{const [t,sub]=dayTitle(k);return `<section class="ap-day"><h3>${t}${sub?` <span>${sub}</span>`:''} <span>· ${list.length}</span></h3><div class="ap-grid">${list.map(tile).join('')}</div></section>`}).join('');
+}
+function renderArchPage(){
+  let page=$('#archPage');$('#archiveBox').classList.toggle('on',archPage);
+  if(!archPage){page&&page.remove();return}
+  if(!page){page=document.createElement('section');page.id='archPage';page.className='arch-page';page.setAttribute('aria-label','Archief');$('#work').appendChild(page);
+    page.innerHTML=`<div class="ap-head"><h2>${ic('archive',20)}Archief <small id="apCount"></small></h2><span class="sp"></span>
+      <select class="field" id="archBoardSel" aria-label="Bord kiezen"></select>
+      <input class="field" id="archSearch" type="search" placeholder="Zoeken in archief" aria-label="Zoeken in archief" autocomplete="off">
+      <button class="btn" data-act="closeArchive">${ic('x',14)}Sluiten</button></div><div class="ap-body"></div>`}
+  const sel=page.querySelector('#archBoardSel');if(archBoard&&!S.boards.some(b=>b.id===archBoard))archBoard='';
+  sel.innerHTML=`<option value="">Alle borden</option>`+S.boards.map(b=>`<option value="${b.id}" ${b.id===archBoard?'selected':''}>${esc(b.title)}</option>`).join('');
+  fillArchive();
 }
 function commit(){save();renderAll()}
 
@@ -922,7 +983,7 @@ function archiveCard(id){
   const loc=locate(id); if(!loc||loc.archived) return;
   loc.arr.splice(loc.i,1);
   const b=loc.board||board();
-  b.archive.cards.unshift({card:loc.card,listId:loc.list?loc.list.id:'inbox'});
+  b.archive.cards.unshift({card:loc.card,listId:loc.list?loc.list.id:'inbox',at:Date.now()});
   log(loc.card,'heeft deze kaart gearchiveerd');
   toast('Kaart gearchiveerd',()=>{restoreCard(id);commit()});
 }
@@ -1073,8 +1134,8 @@ const ACT={
     closePop();commit()},
   moveAll(v){const [from,to]=v.split(':');const f=findList(from).list,t=findList(to).list;f.cards.forEach(c=>log(c,`heeft deze kaart verplaatst van ${f.title} naar ${t.title}`));t.cards.push(...f.cards);f.cards=[];closePop();commit()},
   listColor(v){const [id,c]=v.split(':');findList(id).list.color=c;commit();repop()},
-  archiveAllCards(id){const l=findList(id).list;const b=board();l.cards.forEach(c=>{log(c,'heeft deze kaart gearchiveerd');b.archive.cards.unshift({card:c,listId:l.id})});l.cards=[];closePop();commit();toast('Kaarten gearchiveerd')},
-  archiveList(id){const b=board();const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);b.archive.lists.unshift(l);closePop();commit();toast('Lijst gearchiveerd',()=>{const j=b.archive.lists.indexOf(l);if(j>=0){b.archive.lists.splice(j,1);b.lists.splice(i,0,l);commit()}})},
+  archiveAllCards(id){const l=findList(id).list;const b=board();l.cards.forEach(c=>{log(c,'heeft deze kaart gearchiveerd');b.archive.cards.unshift({card:c,listId:l.id,at:Date.now()})});l.cards=[];closePop();commit();toast('Kaarten gearchiveerd')},
+  archiveList(id){const b=board();const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);l.archivedAt=Date.now();b.archive.lists.unshift(l);closePop();commit();toast('Lijst gearchiveerd',()=>{const j=b.archive.lists.indexOf(l);if(j>=0){b.archive.lists.splice(j,1);b.lists.splice(i,0,l);commit()}})},
   toggleDone(id){const c=locate(id).card;c.done=!c.done;log(c,c.done?'heeft deze kaart als voltooid gemarkeerd':'heeft deze kaart als niet voltooid gemarkeerd');commit()},
   openCard(id){modalId=id;descEditing=false;editingItem=null;deleteConfirm=null;closePop();renderModal()},
   closeModal(){modalId=null;descEditing=false;deleteConfirm=null;closePop();renderModal()},
@@ -1166,7 +1227,8 @@ const ACT={
   quickSteps(id,a){qsCard=id;openPop(a,'Actiestappen','<div id="qsBody"></div>');fillQuickSteps();
     const p=popEl,r=a.getBoundingClientRect();if(p.offsetTop+p.offsetHeight>innerHeight-8)p.style.top=Math.max(8,r.top-p.offsetHeight-6)+'px';$('#qsInput').focus()},
   qsDel(v){const [clid,iid]=v.split(':');const cl=locate(qsCard).card.checklists.find(x=>x.id===clid);cl.items=cl.items.filter(i=>i.id!==iid);save();renderInbox();renderPlanner();renderBoard(true);fillQuickSteps();$('#qsInput').focus()},
-  archiveMenu(id,a){archQ='';archConfirm=null;openPop(a,'Archief',`<input class="field" id="archSearch" type="search" placeholder="Zoeken in archief" aria-label="Zoeken in archief" autocomplete="off"><div id="archBody" style="margin-top:6px"></div>`);popEl.classList.add('wide');fillArchive()},
+  archiveMenu(){closePop();archPage=!archPage;archConfirm=null;if(archPage){archQ='';modalId=null;drawerOpen=false}renderAll();if(archPage&&!narrow())$('#archSearch')?.focus()},
+  closeArchive(){archPage=false;archConfirm=null;renderAll()},
   archRestore(id){restoreCard(id);archConfirm=null;commit();toast('Kaart hersteld')},
   archAskDelete(id){archConfirm=id;fillArchive()},
   archDelete(id){for(const b of S.boards){const i=b.archive.cards.findIndex(a=>a.card.id===id);if(i>=0){const [a]=b.archive.cards.splice(i,1);dropBlobs(a.card)}}archConfirm=null;commit();toast('Kaart verwijderd')},
@@ -1207,6 +1269,7 @@ document.addEventListener('keydown',e=>{
     if(descEditing){descEditing=false;renderModal();return}
     if(modalId){ACT.closeModal();return}
     if(drawerOpen){ACT.closeDrawer();return}
+    if(archPage){ACT.closeArchive();return}
     if(composer){composer=null;renderAll();return}
     if(addingList){addingList=false;renderBoard();return}
     if(editingListTitle||editingBoardTitle){editingListTitle=null;editingBoardTitle=false;renderBoard();return}
@@ -1263,6 +1326,7 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='archSearch'){archQ=t.value;fillArchive();return}
+  if(t.id==='archBoardSel'){archBoard=t.value;fillArchive();return}
   if(t.id==='q'){q=t.value;renderInbox();renderPlanner();renderBoard();return}
   if(t.id==='mTitle'||t.id==='inboxAdd'||t.matches('[data-composer]'))autosize(t);
   // Edits are kept while typing, so nothing is lost when you click elsewhere or close the app.

@@ -57,6 +57,7 @@
   --lb-fg:#1d2125; --avatar:#579dff; color-scheme:dark;
 }
 html,body{height:100%}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.43;overflow:hidden}
 *{box-sizing:border-box}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
@@ -100,6 +101,16 @@ body.sorting-steps,body.sorting-steps *{cursor:grabbing!important;user-select:no
 .ghost.finished{opacity:.95}
 
 /* List layouts: side by side (default), grid with several rows, or stacked */
+/* Side by side: lists sit in columns; a list can be stacked under another one in the same column */
+.lists.layout-rij{overflow:auto}
+.lcol{display:flex;flex-direction:column;gap:12px;flex:none;max-height:100%;min-height:0}
+.lcol:not(:has(> :not(.drag-src))){display:none}
+.lcol.multi{max-height:none}
+.lcol.multi .list{max-height:none}
+.lcol.multi .cards{overflow:visible}
+.lcol .ph-list{align-self:auto;max-height:none}
+.lcol.ph-col{width:10px;align-self:stretch;max-height:none}
+.lcol.ph-col .ph-list{width:10px;height:100%!important;min-height:160px;background:rgba(255,255,255,.7);box-shadow:0 0 0 2px rgba(255,255,255,.35)}
 .lists.layout-raster{flex-wrap:wrap;overflow-y:auto;overflow-x:hidden;align-content:flex-start}
 .lists.layout-kolom{flex-direction:column;align-items:stretch;overflow-y:auto;overflow-x:hidden}
 .lists.layout-raster .list,.lists.layout-kolom .list{max-height:none}
@@ -637,12 +648,14 @@ function renderPane(pane,b,multi){
     <button class="bh-btn" data-act="openDrawer" aria-label="Bordmenu">${ic('dots')}</button>
     ${multi?`<button class="bh-btn hide-narrow" data-act="closePane" data-id="${b.id}" aria-label="Dit bord sluiten" title="Sluiten in splitscreen">${ic('x')}</button>`:''}`;
   const lists=pane.querySelector('.lists'); const scrolls={};
-  lists.classList.toggle('layout-raster',b.layout==='raster');lists.classList.toggle('layout-kolom',b.layout==='kolom');
+  lists.classList.toggle('layout-raster',b.layout==='raster');lists.classList.toggle('layout-kolom',b.layout==='kolom');lists.classList.toggle('layout-rij',!b.layout);
   lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z)scrolls[el.dataset.list]=z.scrollTop});
-  lists.innerHTML=b.lists.map(l=>listHtml(l,b)).join('')+`<div class="add-list">${addingList===b.id?`<form data-add-list-form="${b.id}"><input placeholder="Voer lijstnaam in…" aria-label="Lijstnaam"><div class="composer-row"><button class="btn primary sm" type="submit">Lijst toevoegen</button><button type="button" class="icon-btn" data-act="cancelAddList" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button data-act="addList" data-id="${b.id}">${ic('plus')}Voeg een andere lijst toe</button>`}</div>`;
+  lists.innerHTML=(b.layout?b.lists.map(l=>listHtml(l,b)).join(''):listColumns(b).map(col=>`<div class="lcol ${col.length>1?'multi':''}">${col.map(l=>listHtml(l,b)).join('')}</div>`).join(''))+`<div class="add-list">${addingList===b.id?`<form data-add-list-form="${b.id}"><input placeholder="Voer lijstnaam in…" aria-label="Lijstnaam"><div class="composer-row"><button class="btn primary sm" type="submit">Lijst toevoegen</button><button type="button" class="icon-btn" data-act="cancelAddList" aria-label="Annuleren">${ic('x')}</button></div></form>`:`<button data-act="addList" data-id="${b.id}">${ic('plus')}Voeg een andere lijst toe</button>`}</div>`;
   lists.querySelectorAll('.list[data-list]').forEach(el=>{const z=el.querySelector('.cards');if(z&&scrolls[el.dataset.list])z.scrollTop=scrolls[el.dataset.list]});
   markActivePane();
 }
+// In the side-by-side layout a list with under=true sits below the list before it, in the same column
+function listColumns(b){const cols=[];b.lists.forEach((l,i)=>{if(l.under&&i>0&&cols.length)cols[cols.length-1].push(l);else cols.push([l])});return cols}
 function listHtml(l,b){
   const vis=l.cards.filter(matches);
   if(l.collapsed) return `<div class="list collapsed" data-list="${l.id}" data-act="collapse" data-id="${l.id}" style="--lbg:${lc(l.color)}" title="Lijst uitklappen">${ic('collapse')}<span class="vtitle">${esc(l.title)}</span><span class="count">${vis.length}</span></div>`;
@@ -1060,7 +1073,7 @@ const ACT={
   layoutMenu(id,a){
     const cur=board().layout||'rij';
     const opt=(k,icon,t,sub)=>`<button class="layout-opt ${cur===k?'on':''}" data-act="setLayout" data-id="${k}">${ic(icon,18)}<span>${t}<small>${sub}</small></span></button>`;
-    openPop(a,'Indeling',opt('rij','cols','Naast elkaar','Lijsten in één rij, scrollen naar rechts')+opt('raster','layout','Raster','Meerdere rijen, scrollen naar beneden')+opt('kolom','rows','Onder elkaar','Eén lijst per rij, scrollen naar beneden'));
+    openPop(a,'Indeling',opt('rij','cols','Vrij (standaard)','Naast elkaar, en sleep een lijst onder een andere lijst')+opt('raster','layout','Raster','Meerdere rijen, scrollen naar beneden')+opt('kolom','rows','Onder elkaar','Eén lijst per rij, scrollen naar beneden'));
   },
   setLayout(k){board().layout=k==='rij'?undefined:k;closePop();commit()},
   splitMenu(id,a){
@@ -1438,7 +1451,7 @@ function beginDrag(x,y){
   const g=el.cloneNode(true);g.classList.add('ghost');g.style.width=r.width+'px';if(p.type==='list')g.style.height=Math.min(r.height,innerHeight*.7)+'px';g.style.overflow='hidden';
   document.body.appendChild(g);p.ghost=g;
   const ph=document.createElement('div');ph.className=p.type==='card'?'ph-card':'ph-list';
-  ph.style.height=(p.type==='card'?r.height:r.height)+'px';
+  ph.style.height=(p.type==='card'?r.height:Math.min(r.height,260))+'px';
   el.after(ph);el.classList.add('drag-src');p.ph=ph;
   document.body.classList.add('dragging');
   p.raf=requestAnimationFrame(autoScroll);
@@ -1460,12 +1473,30 @@ function moveDrag(x,y){
     p.zone=zone;
   }else{
     const row=p.row;
+    if(row.classList.contains('layout-rij')){moveListFree(p,row,x,y);return}
     const ls=[...row.querySelectorAll(':scope > .list:not(.drag-src)')];
     const stacked=row.classList.contains('layout-kolom');
     let before=null;for(const l of ls){const r=l.getBoundingClientRect();
       if(stacked?y<r.top+r.height/2:(y<r.top||(y<=r.bottom&&x<r.left+r.width/2))){before=l;break}}
     const tgt=before||row.querySelector(':scope > .add-list');if(p.ph.nextElementSibling!==tgt)row.insertBefore(p.ph,tgt);
   }
+}
+function placeList(p,parent,before){const ph=p.ph,old=ph.parentElement;if(ph.parentElement===parent&&ph.nextElementSibling===before)return;
+  parent.insertBefore(ph,before);if(old!==parent&&old.classList.contains('ph-col'))old.remove()}
+function moveListFree(p,row,x,y){
+  const cols=[...row.querySelectorAll(':scope > .lcol:not(.ph-col)')].filter(c=>c.querySelector(':scope > .list:not(.drag-src)'));
+  let hit=null,side=null;
+  for(const c of cols){const r=c.getBoundingClientRect();if(x<r.left-6){hit=c;side='before';break}
+    if(x<=r.right+6){const below=y>r.bottom-8;const w=r.width*.22;
+      side=below?'in':x<r.left+w?'before':x>r.right-w?'after':'in';hit=c;break}}
+  const newCol=ref=>{let pc=p.ph.parentElement;if(!pc.classList.contains('ph-col')){pc=document.createElement('div');pc.className='lcol ph-col'}
+    if(pc.nextElementSibling!==ref||pc.parentElement!==row)row.insertBefore(pc,ref);if(p.ph.parentElement!==pc){const old=p.ph.parentElement;pc.appendChild(p.ph);if(old&&old.classList.contains('ph-col')&&old!==pc)old.remove()}};
+  if(!hit){newCol(row.querySelector(':scope > .add-list'));return}
+  if(side==='before'){newCol(hit);return}
+  if(side==='after'){let ref=hit.nextElementSibling;while(ref&&ref.classList.contains('ph-col'))ref=ref.nextElementSibling;newCol(ref);return}
+  const ls=[...hit.querySelectorAll(':scope > .list:not(.drag-src)')];
+  let before=null;for(const l of ls){const r=l.getBoundingClientRect();if(y<r.top+r.height/2){before=l;break}}
+  placeList(p,hit,before);
 }
 function autoScroll(){
   if(!P||!P.started)return;
@@ -1492,10 +1523,19 @@ function endDrag(){
       if(p.el.nextElementSibling!==ph) moveCard(id,drop,nid);
     }
   }else{
-    const b=S.boards.find(x=>x.id===p.row.dataset.lists);const id=p.el.dataset.list;const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);
+    const b=S.boards.find(x=>x.id===p.row.dataset.lists);const id=p.el.dataset.list;
+    if(p.row.classList.contains('layout-rij')){
+      const order=[];p.row.querySelectorAll(':scope > .lcol').forEach(col=>{let first=true;
+        col.querySelectorAll(':scope > .list[data-list]:not(.drag-src), :scope > .ph-list').forEach(el=>{const lid=el.classList.contains('ph-list')?id:el.dataset.list;order.push({lid,under:!first});first=false})});
+      const byId=new Map(b.lists.map(l=>[l.id,l]));const seen=new Set();const out=[];
+      order.forEach(o=>{const l=byId.get(o.lid);if(l&&!seen.has(o.lid)){seen.add(o.lid);if(o.under)l.under=true;else delete l.under;out.push(l)}});
+      b.lists.forEach(l=>{if(!seen.has(l.id))out.push(l)});b.lists=out;
+      p.row.querySelectorAll('.ph-col').forEach(c=>c.remove());
+    }else{
+    const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);
     const nid=n&&n.dataset&&n.dataset.list;const j=nid?b.lists.findIndex(x=>x.id===nid):-1;
     if(j<0)b.lists.push(l);else b.lists.splice(j,0,l);
-  }
+  }}
   p.ghost.remove();ph.remove();p.el.classList.remove('drag-src');document.body.classList.remove('dragging');
   justDragged=true;setTimeout(()=>justDragged=false,50);
   commit();

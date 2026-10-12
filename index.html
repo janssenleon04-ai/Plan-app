@@ -87,6 +87,20 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .avatar{width:28px;height:28px;border-radius:50%;background:var(--avatar);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
 .avatar.sm{width:24px;height:24px;font-size:10px}
 
+/* Archive box */
+.archive-box{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:6px;border:1px dashed var(--border);color:var(--muted);font-weight:500;transition:background .15s,transform .15s}
+.archive-box:hover{background:var(--hover);color:var(--fg)}
+.archive-box.drop-on{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);transform:scale(1.08)}
+body.dragging .archive-box{border-color:var(--accent);color:var(--accent)}
+.arch-count{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--hover-strong);font-size:11px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.arch-count:empty{display:none}
+.pop.wide{width:400px}
+.arch-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border)}
+.arch-row .grow{flex:1;min-width:0}
+.arch-row .grow b{display:block;font-weight:600;overflow-wrap:anywhere;cursor:pointer}
+.arch-row .grow span{font-size:12px;color:var(--muted)}
+.arch-row .icon-btn{width:28px;height:28px}
+
 /* Work area */
 .work{flex:1;display:flex;gap:8px;padding:8px;min-height:0;position:relative}
 .panel{width:280px;flex:none;border-radius:12px;background:var(--panel-bg);display:flex;flex-direction:column;min-height:0;box-shadow:0 0 0 1px var(--border)}
@@ -329,6 +343,7 @@ label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
 <div id="app">
   <header class="top">
     <div class="logo"><div class="logo-mark"><i></i><i></i></div><span>Planbord</span></div>
+    <button class="archive-box" id="archiveBox" data-act="archiveMenu" data-drop="archive" title="Archief: sleep een kaart hierheen om te archiveren" aria-label="Archief openen"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg><span class="lbl-txt">Archief</span><span class="arch-count" id="archCount"></span></button>
     <div class="search">
       <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
       <input id="q" type="search" placeholder="Zoeken in kaarten" autocomplete="off" aria-label="Zoeken in kaarten">
@@ -612,7 +627,22 @@ function renderDock(){
 function renderAll(){
   if(narrow()){const on=['inbox','planner','board'].filter(k=>S.ui[k]);if(on.length>1){const keep=S.ui.board?'board':on[0];S.ui={inbox:false,planner:false,board:false};S.ui[keep]=true}}
   $('#work').classList.toggle('noboard',!S.ui.board);
-  renderInbox();renderPlanner();renderBoard();renderDock();renderModal();
+  renderInbox();renderPlanner();renderBoard();renderDock();renderModal();renderArchiveCount();
+}
+function allArchived(){return S.boards.flatMap(b=>b.archive.cards.map(a=>({...a,board:b})))}
+function renderArchiveCount(){const n=allArchived().length;$('#archCount').textContent=n?String(n):'';if(popEl&&popEl.querySelector('#archBody'))fillArchive()}
+let archQ='',archConfirm=null;
+function fillArchive(){
+  const body=popEl&&popEl.querySelector('#archBody');if(!body)return;
+  const qq=archQ.toLowerCase();
+  const items=allArchived().filter(a=>!qq||a.card.title.toLowerCase().includes(qq));
+  const lists=S.boards.flatMap(b=>b.archive.lists.map(l=>({l,b}))).filter(x=>!qq||x.l.title.toLowerCase().includes(qq));
+  const listName=a=>a.listId==='inbox'?'Inbox':(a.board.lists.find(l=>l.id===a.listId)||{}).title||'verwijderde lijst';
+  body.innerHTML=(items.length?items.map(a=>`<div class="arch-row"><div class="grow"><b data-act="openCard" data-id="${a.card.id}">${esc(a.card.title)}</b><span>${esc(a.board.title)} · ${esc(listName(a))}</span></div>
+      <button class="btn sm" data-act="archRestore" data-id="${a.card.id}">Herstellen</button>
+      ${archConfirm===a.card.id?`<button class="btn danger sm" data-act="archDelete" data-id="${a.card.id}">Verwijderen</button>`:`<button class="icon-btn" data-act="archAskDelete" data-id="${a.card.id}" aria-label="Definitief verwijderen" title="Definitief verwijderen">${ic('trash',14)}</button>`}</div>`).join('')
+    :`<p style="font-size:13px;color:var(--muted);margin:8px 0">${qq?'Niets gevonden.':'Het archief is leeg. Sleep een kaart naar de archiefdoos bovenin om hem te archiveren.'}</p>`)
+    +(lists.length?`<h4>Gearchiveerde lijsten</h4>`+lists.map(({l,b})=>`<div class="arch-row"><div class="grow"><b style="cursor:default">${esc(l.title)}</b><span>${esc(b.title)} · ${l.cards.length} kaarten</span></div><button class="btn sm" data-act="archRestoreList" data-id="${b.id}:${l.id}">Herstellen</button></div>`).join(''):'');
 }
 function commit(){save();renderAll()}
 
@@ -1036,6 +1066,11 @@ const ACT={
   quickSteps(id,a){qsCard=id;openPop(a,'Actiestappen','<div id="qsBody"></div>');fillQuickSteps();
     const p=popEl,r=a.getBoundingClientRect();if(p.offsetTop+p.offsetHeight>innerHeight-8)p.style.top=Math.max(8,r.top-p.offsetHeight-6)+'px';$('#qsInput').focus()},
   qsDel(v){const [clid,iid]=v.split(':');const cl=locate(qsCard).card.checklists.find(x=>x.id===clid);cl.items=cl.items.filter(i=>i.id!==iid);save();renderInbox();renderPlanner();renderBoard(true);fillQuickSteps();$('#qsInput').focus()},
+  archiveMenu(id,a){archQ='';archConfirm=null;openPop(a,'Archief',`<input class="field" id="archSearch" type="search" placeholder="Zoeken in archief" aria-label="Zoeken in archief" autocomplete="off"><div id="archBody" style="margin-top:6px"></div>`);popEl.classList.add('wide');fillArchive()},
+  archRestore(id){restoreCard(id);archConfirm=null;commit();toast('Kaart hersteld')},
+  archAskDelete(id){archConfirm=id;fillArchive()},
+  archDelete(id){for(const b of S.boards){const i=b.archive.cards.findIndex(a=>a.card.id===id);if(i>=0){const [a]=b.archive.cards.splice(i,1);dropBlobs(a.card)}}archConfirm=null;commit();toast('Kaart verwijderd')},
+  archRestoreList(v){const [bid,lid]=v.split(':');const b=S.boards.find(x=>x.id===bid);const i=b.archive.lists.findIndex(l=>l.id===lid);if(i>=0)b.lists.push(b.archive.lists.splice(i,1)[0]);commit();toast('Lijst hersteld')},
   weekPrev(){weekStart.setDate(weekStart.getDate()-7);renderPlanner()},
   weekNext(){weekStart.setDate(weekStart.getDate()+7);renderPlanner()},
   weekToday(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));weekStart=d;renderPlanner()},
@@ -1126,6 +1161,7 @@ document.addEventListener('focusout',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target;
+  if(t.id==='archSearch'){archQ=t.value;fillArchive();return}
   if(t.id==='q'){q=t.value;renderInbox();renderPlanner();renderBoard();return}
   if(t.id==='mTitle'||t.id==='inboxAdd'||t.matches('[data-composer]'))autosize(t);
   // Edits are kept while typing, so nothing is lost when you click elsewhere or close the app.
@@ -1219,6 +1255,8 @@ function moveDrag(x,y){
   p.ghost.style.transform=`translate(${x-p.offX}px,${y-p.offY}px) rotate(3deg)`;
   const under=document.elementFromPoint(x,y);if(!under)return;
   if(p.type==='card'){
+    const box=$('#archiveBox');const onBox=!!under.closest('#archiveBox');box.classList.toggle('drop-on',onBox);p.toArchive=onBox;
+    if(onBox)return;
     let zone=under.closest('[data-drop]');
     if(!zone){const l=under.closest('.list:not(.collapsed)');if(l)zone=l.querySelector('[data-drop]');else{const d=under.closest('.day');if(d)zone=d.querySelector('[data-drop]');else{const ip=under.closest('#inboxPanel');if(ip)zone=ip.querySelector('[data-drop]')}}}
     if(!zone)return;
@@ -1248,7 +1286,9 @@ function endDrag(){
   let n=ph.nextElementSibling;while(n&&n.classList.contains('drag-src'))n=n.nextElementSibling;
   if(p.type==='card'){
     const zone=ph.parentElement&&ph.parentElement.closest('[data-drop]');const drop=zone&&zone.dataset.drop;const id=p.el.dataset.card;
-    if(drop&&drop.startsWith('day:')){const c=locate(id).card;const k=drop.slice(4);if(c.due!==k){c.due=k;log(c,`heeft de vervaldatum ingesteld op ${fmtDue(k)}`)}}
+    $('#archiveBox').classList.remove('drop-on');
+    if(p.toArchive){archiveCard(id)}
+    else if(drop&&drop.startsWith('day:')){const c=locate(id).card;const k=drop.slice(4);if(c.due!==k){c.due=k;log(c,`heeft de vervaldatum ingesteld op ${fmtDue(k)}`)}}
     else if(drop){
       // a card dragged from the planner onto the board moves; dropping it back where it came from is a no-op
       const nid=n&&n.dataset&&n.dataset.card||null;

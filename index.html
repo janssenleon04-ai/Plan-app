@@ -86,6 +86,20 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:4px;color:var(--muted)}
 .icon-btn:hover{background:var(--hover)}
 .avatar{width:28px;height:28px;border-radius:50%;background:var(--avatar);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+.acct-btn{position:relative;padding:0;border:0;cursor:pointer}
+.acct-btn:not([data-sync]),.acct-btn[data-sync=uit]{background:var(--hover-strong);color:var(--fg)}
+.acct-btn[data-sync]:not([data-sync=uit])::after{content:'';position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;border:2px solid var(--top-bg);background:var(--ok)}
+.acct-btn[data-sync=bezig]::after{background:#e2b203}
+.acct-btn[data-sync=fout]::after,.acct-btn[data-sync=keuze]::after{background:#e34935}
+.acct-btn[data-sync=offline]::after{background:var(--subtle)}
+.acct-p{margin:0 0 8px;font-size:13px;overflow-wrap:anywhere}
+.acct-msg{margin:10px 0 0;font-size:13px;padding:8px 10px;border-radius:6px;background:var(--accent-soft)}
+.acct-lnk{margin-top:8px;font-size:13px;background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
+.acct-wide{width:100%;justify-content:center;margin-top:6px}
+.acct-sub{display:block;font-size:12px;color:var(--muted);margin:2px 0 6px}
+.acct-state{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:0 0 4px}
+.acct-state i{flex:none;width:10px;height:10px;border-radius:50%;margin-top:4px;background:var(--ok)}
+.acct-state[data-k=bezig] i{background:#e2b203}.acct-state[data-k=fout] i{background:#e34935}.acct-state[data-k=offline] i{background:var(--subtle)}
 .avatar.sm{width:24px;height:24px;font-size:10px}
 
 .grip{flex:none;display:grid;place-items:center;width:14px;height:20px;cursor:grab;color:var(--muted);opacity:.35;touch-action:none;border-radius:3px}
@@ -421,7 +435,7 @@ label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
       <input id="q" type="search" placeholder="Zoeken in kaarten" autocomplete="off" aria-label="Zoeken in kaarten">
     </div>
     <button class="btn primary" data-act="createMenu"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl-txt">Aanmaken</span></button>
-    <div class="avatar" title="Leon Janssen">LE</div>
+    <button class="avatar acct-btn" id="avatarBtn" data-act="accountMenu" aria-label="Account en synchronisatie"></button>
   </header>
   <main class="work" id="work">
     <aside class="panel" id="inboxPanel"></aside>
@@ -516,12 +530,9 @@ function mkCard(title,extra){return Object.assign({id:uid(),title,desc:'',labels
 function defaultLabels(){return LABEL_COLORS.slice(0,6).map(c=>({id:uid(),color:c,name:''}))}
 function mkBoard(title,bg,lists){return {id:uid(),title,bg,starred:false,labels:defaultLabels(),lists:(lists||[]).map(l=>({id:uid(),title:l,color:'none',collapsed:false,cards:[]})),archive:{cards:[],lists:[]}}}
 function seed(){
-  const b=mkBoard('Mijn Trello-bord','paars',['Vandaag','Deze week','Later','Aanvraag staat uit','nakijken']);
-  b.starred=true;
+  const b=mkBoard('Mijn bord','paars',['Vandaag','Deze week','Later']);
   b.lists[0].color='yellow'; b.lists[1].color='green';
-  b.lists[0].cards.push(mkCard('Aan de slag met Trello',{done:true,watch:true,members:['LE']}));
-  ['Z-mike computer instaleren','CRM systeem uitzoeken','Computers instaleren zoveel mogelijk','Zitten voor stuklijsten met Nanne','Computer vincent','Marjolijn computer','Herbert computer nakijken','Computers Euromec nakijken','checklist maken inschieten order','ten voorbereiding stukjlijsten bekijken en bekend maken']
-    .forEach(t=>b.lists[2].cards.push(mkCard(t)));
+  b.lists[0].cards.push(mkCard('Welkom bij Planbord! Klik op deze kaart om hem te openen.',{desc:'Sleep kaarten tussen lijsten, sleep een lijst onder een andere lijst, en sleep klaar werk naar de archiefdoos bovenin. Log rechtsboven in om je borden op al je apparaten te hebben.'}));
   return {boards:[b],inbox:[],current:b.id,ui:{inbox:true,planner:false,board:true}};
 }
 function load(){try{const r=localStorage.getItem(LS_KEY);if(r){const s=JSON.parse(r);if(s&&s.boards&&s.boards.length)return s}}catch(e){}return seed()}
@@ -531,7 +542,8 @@ function exampleTemplate(){
   const steps=['Order ontvangen en controleren','Orderbevestiging naar klant sturen','Onderdelen bestellen','Order inplannen','Order leveren of installeren','Factuur versturen'];
   return mkCard('Order klant',{desc:'Voorbeeldsjabloon. Pas de titel, beschrijving en stappen aan zoals jij werkt.',checklists:[{id:uid(),title:'Actiestappen',items:steps.map(t=>({id:uid(),text:t,done:false}))}],activity:[]});
 }
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
+let cloudChanged=null;
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}cloudChanged&&cloudChanged()}
 const board=()=>S.boards.find(b=>b.id===S.current)||S.boards[0];
 function fixOpen(){
   if(!S.boards.some(b=>b.id===S.current)) S.current=S.boards[0].id;
@@ -881,7 +893,7 @@ function autosize(t){if(!t)return;t.style.height='auto';t.style.height=t.scrollH
 const FILES=(()=>{let dbp;
   const open=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('planbord-bestanden',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
   const run=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction('files',mode);const r=fn(t.objectStore('files'));t.oncomplete=()=>res(r.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)}));
-  return {put:(k,v)=>run('readwrite',s=>s.put(v,k)),get:k=>run('readonly',s=>s.get(k)),del:k=>run('readwrite',s=>s.delete(k))};
+  return {put:(k,v)=>run('readwrite',s=>s.put(v,k)),get:k=>run('readonly',s=>s.get(k)),del:k=>run('readwrite',s=>s.delete(k)),clear:()=>run('readwrite',s=>s.clear())};
 })();
 const fmtSize=n=>n<1024?n+' B':n<1048576?Math.round(n/1024)+' kB':(n/1048576).toFixed(1)+' MB';
 const extOf=n=>(n.match(/\.([a-z0-9]{1,5})$/i)||[,''])[1].toLowerCase();
@@ -918,6 +930,7 @@ async function addFiles(cardId,files){
   for(const f of files){
     const id=uid();
     try{await FILES.put(id,f)}catch(e){toast(`"${f.name}" kon niet worden opgeslagen. Mogelijk is de opslag van je browser vol.`);continue}
+    CLOUD.upload(id,f);
     const mail=await mailInfo(f);
     c.attachments.push({id,name:f.name,size:f.size,type:f.type||'',added:Date.now(),mail});
     log(c,`heeft ${mail?'de mail':'de bijlage'} ${mail?mail.subject:f.name} toegevoegd`);n++;
@@ -926,7 +939,7 @@ async function addFiles(cardId,files){
 }
 async function titleFromFiles(files){const f=files[0];const m=await mailInfo(f);return m?m.subject:f.name.replace(/\.[^.]+$/,'')}
 function attRefs(id){let n=0;const scan=c=>(c.attachments||[]).forEach(a=>a.id===id&&n++);S.inbox.forEach(scan);(S.templates||[]).forEach(scan);S.boards.forEach(b=>{b.lists.forEach(l=>l.cards.forEach(scan));b.archive.lists.forEach(l=>l.cards.forEach(scan));b.archive.cards.forEach(a=>scan(a.card))});return n}
-function dropBlobs(card){(card.attachments||[]).forEach(a=>{if(!attRefs(a.id))FILES.del(a.id).catch(()=>{})})}
+function dropBlobs(card){(card.attachments||[]).forEach(a=>{if(!attRefs(a.id)){FILES.del(a.id).catch(()=>{});CLOUD.removeFile(a.id)}})}
 
 /* ---------- popovers ---------- */
 let popEl=null, popAnchor=null, popSkip=null, popKey=null, popReturn=null;
@@ -1019,6 +1032,210 @@ function toast(msg,undo){
 function cloneCard(c){const n=JSON.parse(JSON.stringify(c));n.id=uid();n.checklists.forEach(cl=>{cl.id=uid();cl.items.forEach(i=>i.id=uid())});n.comments=[];n.activity=[{text:`heeft deze kaart gekopieerd van ${c.title}`,at:Date.now()}];return n}
 
 /* ---------- actions ---------- */
+/* ---------- sync via Supabase: one row per person with all their boards, attachments in Storage ---------- */
+const SUPA_URL='https://aevmzeukvermrbcakawd.supabase.co', SUPA_KEY='sb_publishable_Ks-0RV5qr3Ew5HvzJ5qCoQ_KWmUdkkR';
+const CLOUD=(()=>{
+  const AK='planbord.auth', SK='planbord.sync';
+  const rd=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+  const wr=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  const fresh=()=>({base:null,dirty:false,uploaded:[]});
+  let auth=rd(AK);                 // {access_token, refresh_token, expires_at, user:{id,email}}
+  let st=rd(SK)||fresh();          // base = updated_at of the cloud copy this device last saw
+  let status='ok',lastOk=0,lastErr='',pushTimer=null,pulling=false,pushing=false,edits=0,pendingRemote=null,choice=null,applying=false,started=false,recovery=false,lastSent=null,msg='';
+  const saveSt=()=>wr(SK,st);
+  const jwt=t=>{try{return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))))}catch(e){return {}}};
+  const appUrl=()=>location.origin+location.pathname;
+  function setSession(s){
+    if(!s){auth=null;wr(AK,null);return}
+    const p=jwt(s.access_token);
+    auth={access_token:s.access_token,refresh_token:s.refresh_token,expires_at:+s.expires_at||p.exp||(Date.now()/1000+(+s.expires_in||3600)),
+      user:{id:(s.user&&s.user.id)||p.sub,email:(s.user&&s.user.email)||p.email||''}};
+    wr(AK,auth);
+  }
+  const NL=[[/invalid login credentials/i,'E-mailadres of wachtwoord klopt niet.'],[/email not confirmed/i,'Je e-mailadres is nog niet bevestigd. Klik eerst op de link in de bevestigingsmail.'],
+    [/already registered|already exists/i,'Er bestaat al een account met dit e-mailadres. Log in.'],[/at least (\d+) characters/i,m=>`Het wachtwoord moet minstens ${m[1]} tekens hebben.`],
+    [/valid email|invalid format|unable to validate email/i,'Dit e-mailadres klopt niet.'],[/rate limit|too many/i,'Te veel pogingen. Wacht even en probeer het opnieuw.'],
+    [/relation .*planbord.* does not exist|could not find the table/i,'De database is nog niet ingericht. Voer eerst het script uit in Supabase.'],[/failed to fetch|networkerror|load failed/i,'Geen verbinding met internet.']];
+  const nl=m=>{for(const [re,t] of NL){const x=String(m).match(re);if(x)return typeof t==='function'?t(x):t}return String(m)};
+  async function errText(r){let j={};try{j=await r.json()}catch(e){}return nl(j.msg||j.error_description||j.message||j.error||('Fout '+r.status))}
+  async function authPost(path,body){
+    const r=await fetch(SUPA_URL+path,{method:path.includes('/user')?'PUT':'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json',...(auth&&path.includes('/user')?{Authorization:'Bearer '+auth.access_token}:{})},body:JSON.stringify(body)});
+    if(!r.ok)throw new Error(await errText(r));return r.json().catch(()=>({}));
+  }
+  async function refresh(){
+    if(!auth)return;
+    let r;try{r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:auth.refresh_token})})}catch(e){throw new Error('Geen verbinding met internet.')}
+    if(r.ok){setSession(await r.json());return}
+    if(r.status>=400&&r.status<500){setSession(null);paint();toast('Je bent uitgelogd. Log opnieuw in om te synchroniseren.')}
+    throw new Error(await errText(r));
+  }
+  async function call(path,opt={},retry=true){
+    if(auth&&auth.expires_at-60<Date.now()/1000)await refresh();
+    if(!auth)throw new Error('Niet ingelogd.');
+    const h=Object.assign({apikey:SUPA_KEY,Authorization:'Bearer '+auth.access_token},opt.headers||{});
+    let body=opt.body;if(opt.json!==undefined){h['Content-Type']='application/json';body=JSON.stringify(opt.json)}
+    const r=await fetch(SUPA_URL+path,{method:opt.method||'GET',headers:h,body,cache:'no-store'});
+    if(r.status===401&&retry){await refresh();return call(path,opt,false)}
+    return r;
+  }
+  // per-device settings (which panels and boards are open) stay on the device
+  const shared=()=>{const {ui,open,current,...rest}=S;return rest};
+  const busy=()=>!!(P||SORT||popEl&&popEl.querySelector('input:focus,textarea:focus')||document.activeElement&&document.activeElement.matches('input,textarea,select,[contenteditable]'));
+  function apply(remote){
+    applying=true;
+    S=Object.assign({inbox:[],templates:[]},remote,{ui:S.ui,open:S.open,current:S.current});
+    if(!Array.isArray(S.boards)||!S.boards.length)S.boards=[mkBoard('Mijn bord','paars',['Te doen','Bezig','Klaar'])];
+    fixOpen();save();applying=false;
+    if(modalId&&!locate(modalId))modalId=null;
+    renderAll();
+  }
+  function ok(){status=st.dirty?'bezig':'ok';lastOk=Date.now();lastErr='';paint()}
+  function fail(e){status=navigator.onLine===false?'offline':'fout';lastErr=nl(e&&e.message||e);paint()}
+  async function pull(force){
+    if(!auth||pulling||choice)return;pulling=true;
+    try{
+      const r=await call('/rest/v1/planbord?select=state,updated_at'+(st.base&&!force?'&updated_at=gt.'+encodeURIComponent(st.base):''));
+      if(!r.ok)throw new Error(await errText(r));
+      const rows=await r.json();ok();
+      if(!rows.length){if(!st.base){st.dirty=true;saveSt();push()}return}
+      const row=rows[0];
+      if(!st.base){choice=row;paint();ACT.accountMenu();return}   // first sync on this device: let the person pick which copy to keep
+      if(row.updated_at===st.base)return;
+      pendingRemote=row;tryApply();
+    }catch(e){fail(e)}finally{pulling=false}
+  }
+  function tryApply(){
+    if(!pendingRemote)return;
+    if(st.dirty){pendingRemote=null;push();return}     // this device has newer edits: those win
+    if(busy()){setTimeout(tryApply,1500);return}
+    const row=pendingRemote;pendingRemote=null;
+    apply(row.state);st.base=row.updated_at;lastSent=JSON.stringify(shared());saveSt();ok();
+  }
+  function changed(){
+    if(applying||!auth||choice)return;
+    const now=JSON.stringify(shared());if(now===lastSent&&!st.dirty)return;
+    st.dirty=true;saveSt();edits++;status='bezig';paint();
+    clearTimeout(pushTimer);pushTimer=setTimeout(push,1200);
+  }
+  async function push(){
+    if(!auth||choice)return;
+    if(pushing){clearTimeout(pushTimer);pushTimer=setTimeout(push,800);return}
+    pushing=true;const mark=edits;const body=shared();const txt=JSON.stringify(body);
+    try{
+      const r=await call('/rest/v1/planbord?on_conflict=user_id&select=updated_at',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},json:{user_id:auth.user.id,state:body}});
+      if(!r.ok)throw new Error(await errText(r));
+      const rows=await r.json();if(rows[0]&&rows[0].updated_at)st.base=rows[0].updated_at;
+      lastSent=txt;if(edits===mark)st.dirty=false;saveSt();ok();uploadMissing();
+    }catch(e){fail(e);clearTimeout(pushTimer);pushTimer=setTimeout(push,15000)}
+    finally{pushing=false}
+  }
+  /* attachments: kept in IndexedDB on each device, with a copy in the 'bijlagen' bucket */
+  const objPath=id=>`/storage/v1/object/bijlagen/${auth.user.id}/${encodeURIComponent(id)}`;
+  function allAtt(){const ids=new Set();(function walk(o){if(!o||typeof o!=='object')return;if(Array.isArray(o.attachments))o.attachments.forEach(a=>a&&a.id&&ids.add(a.id));Object.values(o).forEach(walk)})(S);return ids}
+  async function upload(id,blob){
+    if(!auth||!blob)return false;
+    try{const r=await call(objPath(id),{method:'POST',headers:{'x-upsert':'true','Content-Type':blob.type||'application/octet-stream'},body:blob});
+      if(r.ok){if(!st.uploaded.includes(id)){st.uploaded.push(id);saveSt()}return true}}catch(e){}
+    return false;
+  }
+  let upBusy=false;
+  async function uploadMissing(){
+    if(upBusy||!auth)return;upBusy=true;
+    try{for(const id of allAtt()){if(st.uploaded.includes(id))continue;let b;try{b=await FILES.get(id)}catch(e){}if(b)await upload(id,b)}}finally{upBusy=false}
+  }
+  async function download(id){
+    if(!auth)return null;
+    try{const r=await call(`/storage/v1/object/authenticated/bijlagen/${auth.user.id}/${encodeURIComponent(id)}`);if(!r.ok)return null;
+      const b=await r.blob();try{await FILES.put(id,b)}catch(e){}if(!st.uploaded.includes(id)){st.uploaded.push(id);saveSt()}return b}catch(e){return null}
+  }
+  function removeFile(id){if(!auth)return;st.uploaded=st.uploaded.filter(x=>x!==id);saveSt();call(objPath(id),{method:'DELETE'}).catch(()=>{})}
+  /* account popover */
+  const initials=e=>{const p=(e||'?').replace(/@.*/,'').split(/[._\-\s]+/).filter(Boolean);return ((p.length>1?p[0][0]+p[1][0]:(p[0]||'?').slice(0,2))).toUpperCase()};
+  const ago=t=>{const s=Math.round((Date.now()-t)/1000);return s<10?'zojuist':s<60?`${s} seconden geleden`:s<3600?`${Math.round(s/60)} min geleden`:new Date(t).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})};
+  function stateLine(){
+    if(choice)return ['keuze','Kies hieronder welke borden je wilt houden.'];
+    if(status==='fout')return ['fout','Synchroniseren lukt niet: '+lastErr];
+    if(status==='offline')return ['offline','Geen internet. Je wijzigingen worden later verstuurd.'];
+    if(status==='bezig'||st.dirty)return ['bezig','Wijzigingen worden verstuurd…'];
+    return ['ok',lastOk?'Gesynchroniseerd, '+ago(lastOk):'Verbonden'];
+  }
+  function paint(){
+    const a=$('#avatarBtn');if(a){
+      a.textContent=auth?initials(auth.user.email):'';if(!auth)a.innerHTML=ic('user',16);
+      a.dataset.sync=auth?stateLine()[0]:'uit';
+      a.title=auth?`${auth.user.email}: ${stateLine()[1]}`:'Inloggen om te synchroniseren';
+    }
+    fill();
+  }
+  function fill(){
+    const box=popEl&&popEl.querySelector('#acctBody');if(!box)return;
+    const keepEmail=box.querySelector('#acctEmail')?.value||'',keepPw=box.querySelector('#acctPw')?.value||'';
+    let h='';
+    if(recovery&&auth){h=`<p class="acct-p">Kies een nieuw wachtwoord voor ${esc(auth.user.email)}.</p><form id="acctPwForm"><input class="field" id="acctNewPw" type="password" autocomplete="new-password" placeholder="Nieuw wachtwoord (minstens 6 tekens)" aria-label="Nieuw wachtwoord"><div class="btn-row"><button class="btn primary sm" type="submit">Wachtwoord opslaan</button></div></form>`}
+    else if(!auth){h=`<p class="acct-p">Log in om je borden op je telefoon, laptop en computer te hebben. Collega's met een eigen account zien jouw borden niet.</p>
+      <form id="acctForm"><input class="field" id="acctEmail" type="email" autocomplete="email" placeholder="E-mailadres" aria-label="E-mailadres" value="${esc(keepEmail)}">
+      <input class="field" id="acctPw" type="password" autocomplete="current-password" placeholder="Wachtwoord" aria-label="Wachtwoord" style="margin-top:6px" value="${esc(keepPw)}">
+      <div class="btn-row"><button class="btn primary sm" type="submit">Inloggen</button><button class="btn sm" type="button" data-act="acctSignup">Account maken</button></div></form>
+      <button class="lnk acct-lnk" data-act="acctForgot">Wachtwoord vergeten?</button>`}
+    else if(choice){h=`<p class="acct-p"><b>${esc(auth.user.email)}</b></p><p class="acct-p">In je account staan al borden (laatst gewijzigd ${new Date(choice.updated_at).toLocaleString('nl-NL',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}). Welke wil je houden?</p>
+      <button class="btn primary sm acct-wide" data-act="acctUseCloud">Borden uit mijn account gebruiken</button><small class="acct-sub">De borden op dit apparaat worden vervangen.</small>
+      <button class="btn sm acct-wide" data-act="acctUseLocal">Borden van dit apparaat bewaren</button><small class="acct-sub">Je account krijgt de borden van dit apparaat.</small>`}
+    else{const [k,t]=stateLine();h=`<p class="acct-p"><b>${esc(auth.user.email)}</b></p><p class="acct-state" data-k="${k}"><i></i>${esc(t)}</p>
+      <div class="btn-row"><button class="btn sm" data-act="acctSync">Nu synchroniseren</button><button class="btn sm" data-act="acctLogout">Uitloggen</button></div>`}
+    box.innerHTML=h+(msg?`<p class="acct-msg">${esc(msg)}</p>`:'');
+  }
+  function start(){
+    paint();if(!auth||started)return;started=true;
+    setInterval(()=>{if(document.visibilityState==='visible'){pull();if(st.dirty&&!pushing)push()}},20000);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pull()});
+    addEventListener('focus',()=>pull());addEventListener('online',()=>{pull();if(st.dirty)push()});
+    setInterval(()=>{if(popEl&&popEl.querySelector('#acctBody .acct-state'))fill()},10000);
+    lastSent=st.dirty?null:JSON.stringify(shared());
+    pull();if(st.dirty)push();
+  }
+  function init(){handleLink();addEventListener('hashchange',()=>{if(handleLink())start()});start()}
+  // links from the confirmation and password-reset mails come back here with the session in the address
+  function handleLink(){
+    const h=new URLSearchParams(location.hash.slice(1));
+    if(h.get('access_token')){
+      const before=auth&&auth.user.id;
+      setSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:h.get('expires_in'),expires_at:h.get('expires_at')});
+      if(before!==auth.user.id){st=fresh();saveSt()}
+      recovery=h.get('type')==='recovery';
+      history.replaceState(null,'',location.pathname+location.search);
+      setTimeout(()=>{toast(recovery?'Kies een nieuw wachtwoord.':'Je e-mailadres is bevestigd. Je bent ingelogd.');if(recovery)ACT.accountMenu()},300);
+      return true;
+    }else if(h.get('error_description')){
+      const t=h.get('error_description');history.replaceState(null,'',location.pathname+location.search);
+      setTimeout(()=>toast(/expired|invalid/i.test(t)?'Deze link is verlopen. Vraag een nieuwe aan.':t),300);
+    }
+    return false;
+  }
+  return {
+    init,changed,upload,download,removeFile,fill,
+    signedIn:()=>!!auth,
+    async login(email,pw){msg='';const s=await authPost('/auth/v1/token?grant_type=password',{email,password:pw});const before=auth&&auth.user.id;setSession(s);if(before!==auth.user.id){st=fresh();saveSt()}start();pull(true)},
+    async signup(email,pw){msg='';const j=await authPost('/auth/v1/signup?redirect_to='+encodeURIComponent(appUrl()),{email,password:pw});
+      if(j.access_token){setSession(j);st=fresh();saveSt();start();pull(true);return 'in'}
+      msg=`We hebben een bevestigingsmail gestuurd naar ${email}. Klik op de link in die mail; daarna ben je ingelogd.`;fill();return 'mail'},
+    async forgot(email){await authPost('/auth/v1/recover?redirect_to='+encodeURIComponent(appUrl()),{email});msg=`Als ${email} een account heeft, staat er nu een mail klaar om je wachtwoord opnieuw in te stellen.`;fill()},
+    async newPassword(pw){await authPost('/auth/v1/user',{password:pw});recovery=false;msg='';toast('Nieuw wachtwoord opgeslagen');fill()},
+    useCloud(){const c=choice;choice=null;apply(c.state);st.base=c.updated_at;st.dirty=false;lastSent=JSON.stringify(shared());saveSt();ok();uploadMissing();toast('Borden uit je account geladen')},
+    useLocal(){const c=choice;choice=null;st.base=c.updated_at;st.dirty=true;saveSt();push();toast('Borden van dit apparaat worden naar je account gestuurd')},
+    syncNow(){pull(true);if(st.dirty)push()},
+    async logout(){
+      if(st.dirty){await push();if(st.dirty&&!confirm('Niet alle wijzigingen zijn al naar je account gestuurd. Toch uitloggen?'))return}
+      if(!confirm('Uitloggen? De borden worden van dit apparaat gehaald. Ze blijven bewaard in je account.'))return;
+      try{await fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',headers:{apikey:SUPA_KEY,Authorization:'Bearer '+auth.access_token}})}catch(e){}
+      setSession(null);wr(SK,null);try{localStorage.removeItem(LS_KEY)}catch(e){}
+      try{await FILES.clear()}catch(e){}
+      location.reload();
+    },
+    setMsg(t){msg=t;fill()},
+  };
+})();
+cloudChanged=CLOUD.changed;
+
 const ACT={
   createMenu(id,a){
     openPop(a,'Aanmaken',`<label class="fl" for="newBoardTitle">Bordtitel</label><input class="field" id="newBoardTitle" placeholder="Bijv. Projecten">
@@ -1032,6 +1249,20 @@ const ACT={
       <button class="menu-item" data-act="importData">${ic('upload')}Back-up terugzetten</button>`,p=>{p.querySelector('#newBoardTitle').focus();
       p.querySelector('#newBgPick').addEventListener('click',e=>{const s=e.target.closest('[data-bg]');if(!s)return;p.querySelectorAll('[data-bg]').forEach(x=>x.classList.toggle('sel',x===s))})});
   },
+  accountMenu(id,a){
+    const anchor=a||$('#avatarBtn');if(popEl&&popKey&&popKey[0]==='accountMenu'&&a){closePop();return}
+    openPop(anchor,'Account','<div id="acctBody"></div>');CLOUD.fill();const e=$('#acctEmail');if(e&&!narrow())e.focus();
+  },
+  async acctLogin(){const e=$('#acctEmail').value.trim(),p=$('#acctPw').value;if(!e||!p){CLOUD.setMsg('Vul je e-mailadres en wachtwoord in.');return}
+    CLOUD.setMsg('Bezig met inloggen…');try{await CLOUD.login(e,p);toast('Ingelogd')}catch(x){CLOUD.setMsg(x.message)}},
+  async acctSignup(){const e=$('#acctEmail').value.trim(),p=$('#acctPw').value;if(!e||!p){CLOUD.setMsg('Vul een e-mailadres en een wachtwoord (minstens 6 tekens) in en klik dan op Account maken.');return}
+    CLOUD.setMsg('Account aanmaken…');try{if(await CLOUD.signup(e,p)==='in')toast('Account gemaakt, je bent ingelogd')}catch(x){CLOUD.setMsg(x.message)}},
+  async acctForgot(){const e=$('#acctEmail').value.trim();if(!e){CLOUD.setMsg('Vul eerst je e-mailadres in.');$('#acctEmail').focus();return}
+    try{await CLOUD.forgot(e)}catch(x){CLOUD.setMsg(x.message)}},
+  acctSync(){CLOUD.syncNow()},
+  acctLogout(){closePop();CLOUD.logout()},
+  acctUseCloud(){CLOUD.useCloud()},
+  acctUseLocal(){CLOUD.useLocal()},
   async exportData(){closePop();
     const ids=new Set();(function walk(o){if(!o||typeof o!=='object')return;if(Array.isArray(o.attachments))o.attachments.forEach(x=>x&&x.id&&ids.add(x.id));Object.values(o).forEach(walk)})(S);
     const files={};
@@ -1050,6 +1281,7 @@ const ACT={
       if(!confirm(`Back-up van ${data.gemaakt?new Date(data.gemaakt).toLocaleString('nl-NL'):'onbekende datum'} terugzetten?\n\nAlle borden op dit apparaat worden vervangen door de borden uit de back-up.`))return;
       for(const [id,url] of Object.entries(data.files||{})){try{await FILES.put(id,await (await fetch(url)).blob())}catch(e){}}
       try{localStorage.setItem(LS_KEY,JSON.stringify(data.state))}catch(e){toast('Terugzetten mislukt: de opslag van je browser is vol.');return}
+      try{const sy=JSON.parse(localStorage.getItem('planbord.sync')||'null');if(sy){sy.dirty=true;sy.uploaded=[];localStorage.setItem('planbord.sync',JSON.stringify(sy))}}catch(e){}
       location.reload();
     };
     inp.click();
@@ -1200,13 +1432,14 @@ const ACT={
   async openAtt(id){
     const a=locate(modalId).card.attachments.find(x=>x.id===id);
     let blob;try{blob=await FILES.get(id)}catch(e){}
-    if(!blob){toast('Dit bestand staat niet op dit apparaat. Bijlagen worden per apparaat bewaard.');return}
+    if(!blob&&CLOUD.signedIn()){toast('Bijlage ophalen…');blob=await CLOUD.download(id)}
+    if(!blob){toast(CLOUD.signedIn()?'Deze bijlage staat niet op dit apparaat en is (nog) niet in je account gezet. Open hem op het apparaat waar je hem hebt toegevoegd.':'Dit bestand staat niet op dit apparaat. Log in om bijlagen op al je apparaten te hebben.');return}
     const url=URL.createObjectURL(blob);
     if(/^image\/|pdf|^text\//.test(a.type)){const w=window.open(url,'_blank');if(w)return}
     const l=document.createElement('a');l.href=url;l.download=a.name;document.body.appendChild(l);l.click();l.remove();
     setTimeout(()=>URL.revokeObjectURL(url),60000);
   },
-  delAtt(id){const c=locate(modalId).card;const a=c.attachments.find(x=>x.id===id);c.attachments=c.attachments.filter(x=>x.id!==id);if(!attRefs(id))FILES.del(id).catch(()=>{});log(c,`heeft de bijlage ${a.mail?a.mail.subject:a.name} verwijderd`);commit()},
+  delAtt(id){const c=locate(modalId).card;const a=c.attachments.find(x=>x.id===id);c.attachments=c.attachments.filter(x=>x.id!==id);if(!attRefs(id)){FILES.del(id).catch(()=>{});CLOUD.removeFile(id)}log(c,`heeft de bijlage ${a.mail?a.mail.subject:a.name} verwijderd`);commit()},
   templateMenu(listId,a){
     const tpls=S.templates||[];
     const rows=tpls.map(t=>{const n=t.checklists.reduce((s,cl)=>s+cl.items.length,0);
@@ -1304,6 +1537,8 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('submit',e=>{
   e.preventDefault();const f=e.target;
   if(f.dataset.composerForm){const id=f.dataset.composerForm;const t=f.querySelector('textarea');const v=t.value.trim();if(!v){t.focus();return}addCardTo(id,v);commit();const z=document.querySelector(`[data-list="${id}"] .cards`);z&&(z.scrollTop=z.scrollHeight);return}
+  if(f.id==='acctForm'){ACT.acctLogin();return}
+  if(f.id==='acctPwForm'){const v=$('#acctNewPw').value;CLOUD.newPassword(v).catch(x=>CLOUD.setMsg(x.message));return}
   if(f.id==='inboxForm'){const t=$('#inboxAdd');const v=t.value.trim();if(!v)return;t.value='';addCardTo('inbox',v);commit();$('#inboxAdd').focus();return}
   if(f.dataset.addListForm){const bid=f.dataset.addListForm;const inp=f.querySelector('input');const v=inp.value.trim();if(!v){inp.focus();return}S.boards.find(b=>b.id===bid).lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=document.querySelector(`[data-lists="${bid}"]`);l.scrollLeft=l.scrollWidth;return}
   if(f.id==='qsForm'){const i=$('#qsInput');const v=i.value.trim();if(!v)return;i.value='';addQuickStep(v);fillQuickSteps();$('#qsInput').focus();return}
@@ -1542,6 +1777,7 @@ function endDrag(){
 }
 
 renderAll();
+CLOUD.init();
 })();
 </script>
 <script>

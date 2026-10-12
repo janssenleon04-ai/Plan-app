@@ -14,6 +14,14 @@ Open de app via GitHub Pages en installeer hem:
 
 Je gegevens (kaarten en bijlagen) worden op het apparaat zelf bewaard, in de opslag van de browser.
 
+## Synchroniseren tussen apparaten
+
+Planbord gebruikt Supabase voor inloggen en synchroniseren. Iedereen logt in met een eigen account en ziet alleen de eigen borden.
+
+1. Voer `supabase/planbord-setup.sql` één keer uit in Supabase > SQL Editor.
+2. Zet in Supabase > Authentication > URL Configuration de Site URL op het adres van de app.
+3. Klik in de app rechtsboven op het rondje om in te loggen of een account te maken.
+
 ## Bestanden
 
 - `index.html`: de hele app

@@ -177,6 +177,16 @@ body.dragging .archive-box{border-color:var(--accent);color:var(--accent)}
 .ap-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
 .ap-acts{display:flex;gap:6px;align-items:center;margin-top:auto;padding-top:4px}
 .ap-acts .icon-btn{width:28px;height:28px;margin-left:auto}
+.ap-list b .ic{color:var(--muted);margin-top:1px}
+.ap-list.open{grid-column:span 2}
+.ap-cards{display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;margin:2px -4px 0;padding:0 4px}
+.ap-card{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;border-radius:6px;background:var(--list-bg);color:var(--fg)}
+.ap-card:hover{background:var(--hover-strong)}
+.ap-card span{flex:1;min-width:0;overflow-wrap:anywhere}
+.ap-card small{color:var(--muted);font-size:12px}
+.ap-card .ic{flex:none;color:var(--muted)}.ap-card.fin .ic{color:var(--ok)}
+.ap-none{margin:4px 0;font-size:13px;color:var(--muted)}
+@media (max-width:700px){.ap-list.open{grid-column:auto}}
 .ap-kind{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .ap-empty{color:var(--muted);text-align:center;padding:60px 20px}
 .archive-box.on{background:var(--accent-soft);color:var(--accent);border-style:solid;border-color:var(--accent)}
@@ -474,6 +484,7 @@ const ICONS={
  eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
  desc:'<path d="M4 6h16M4 11h16M4 16h10"/>',
  checklist:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/>',
+ chevDown:'<path d="M6 9l6 6 6-6"/>', chevRight:'<path d="M9 6l6 6-6 6"/>',
  circle:'<circle cx="12" cy="12" r="8.5"/>',
  circleCheck:'<circle cx="12" cy="12" r="9" fill="currentColor" stroke="currentColor"/><path d="M8 12.3l2.8 2.8L16.2 9.5" stroke="#fff" stroke-width="2.2"/>',
  chat:'<path d="M4 5h16v11H9l-5 4z"/>', clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
@@ -561,7 +572,8 @@ function locate(id){
   let i=S.inbox.findIndex(c=>c.id===id); if(i>=0) return {card:S.inbox[i],arr:S.inbox,i,list:null,board:null};
   i=(S.templates||[]).findIndex(c=>c.id===id); if(i>=0) return {card:S.templates[i],arr:S.templates,i,list:null,board:null,template:true};
   for(const b of S.boards){for(const l of b.lists){i=l.cards.findIndex(c=>c.id===id);if(i>=0)return {card:l.cards[i],arr:l.cards,i,list:l,board:b}}
-    i=b.archive.cards.findIndex(a=>a.card.id===id); if(i>=0) return {card:b.archive.cards[i].card,arr:null,i,list:null,board:b,archived:true};}
+    i=b.archive.cards.findIndex(a=>a.card.id===id); if(i>=0) return {card:b.archive.cards[i].card,arr:null,i,list:null,board:b,archived:true};
+    for(const l of b.archive.lists){i=l.cards.findIndex(c=>c.id===id);if(i>=0)return {card:l.cards[i],arr:l.cards,i,list:l,board:b,archived:true,inList:true}}}
   return null;
 }
 const log=(c,text)=>{c.activity=c.activity||[];c.activity.push({text,at:Date.now()})};
@@ -738,7 +750,7 @@ function renderAll(){
 function allArchived(){return S.boards.flatMap(b=>b.archive.cards.map(a=>({...a,board:b})))}
 function renderArchiveCount(){const n=allArchived().length+S.boards.reduce((k,b)=>k+b.archive.lists.length,0);$('#archCount').textContent=n?String(n):'';renderArchPage()}
 let archQ='',archConfirm=null;
-let archPage=false,archBoard='';
+let archPage=false,archBoard='';const archOpen=new Set();
 const DAGVOL=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
 const MAANDVOL=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
 function archAt(a){if(a.at)return a.at;const l=(a.card.activity||[]).filter(x=>/gearchiveerd/.test(x.text)).sort((x,y)=>y.at-x.at)[0];return l?l.at:0}
@@ -752,7 +764,7 @@ function fillArchive(){
   const body=page.querySelector('.ap-body');const qq=archQ.toLowerCase();
   const listName=a=>a.listId==='inbox'?'Inbox':(a.board.lists.find(l=>l.id===a.listId)||a.board.archive.lists.find(l=>l.id===a.listId)||{}).title||'verwijderde lijst';
   const entries=[...allArchived().filter(a=>(!archBoard||a.board.id===archBoard)&&(!qq||a.card.title.toLowerCase().includes(qq))).map(a=>({kind:'card',a,at:archAt(a)})),
-    ...S.boards.filter(b=>!archBoard||b.id===archBoard).flatMap(b=>b.archive.lists.filter(l=>!qq||l.title.toLowerCase().includes(qq)).map(l=>({kind:'list',l,b,at:l.archivedAt||0})))]
+    ...S.boards.filter(b=>!archBoard||b.id===archBoard).flatMap(b=>b.archive.lists.filter(l=>!qq||l.title.toLowerCase().includes(qq)||l.cards.some(c=>c.title.toLowerCase().includes(qq))).map(l=>({kind:'list',l,b,at:l.archivedAt||0})))]
     .sort((x,y)=>y.at-x.at);
   const total=allArchived().length+S.boards.reduce((n,b)=>n+b.archive.lists.length,0);
   page.querySelector('#apCount').textContent=total?`${total} ${total===1?'item':'items'}`:'';
@@ -760,9 +772,14 @@ function fillArchive(){
   const groups=new Map();entries.forEach(e=>{const k=dayKey(e.at);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e)});
   const time=t=>t?`${pad(new Date(t).getHours())}:${pad(new Date(t).getMinutes())}`:'';
   const tile=e=>{
-    if(e.kind==='list')return `<div class="ap-tile"><span class="ap-kind">Lijst</span><b style="cursor:default;text-decoration:none">${esc(e.l.title)}</b>
-      <div class="ap-meta"><span>${esc(e.b.title)}</span><span>${e.l.cards.length} ${e.l.cards.length===1?'kaart':'kaarten'}</span>${e.at?`<span>om ${time(e.at)}</span>`:''}</div>
-      <div class="ap-acts"><button class="btn sm" data-act="archRestoreList" data-id="${e.b.id}:${e.l.id}">Herstellen</button></div></div>`;
+    if(e.kind==='list'){
+      const open=archOpen.has(e.l.id)||!!qq&&e.l.cards.some(c=>c.title.toLowerCase().includes(qq)),n=e.l.cards.length;
+      const row=c=>{const it=(c.checklists||[]).flatMap(x=>x.items),dn=it.filter(i=>i.done).length,fin=c.done||(it.length>0&&dn===it.length);
+        return `<button class="ap-card ${fin?'fin':''}" data-act="openCard" data-id="${c.id}">${ic(fin?'circleCheck':'circle',14)}<span>${esc(c.title)}</span>${it.length?`<small>${dn}/${it.length}</small>`:''}</button>`};
+      return `<div class="ap-tile ap-list ${open?'open':''}"><span class="ap-kind">Lijst</span><b data-act="archToggleList" data-id="${e.l.id}">${ic(open?'chevDown':'chevRight',16)}<span>${esc(e.l.title)}</span></b>
+      <div class="ap-meta"><span>${esc(e.b.title)}</span><span>${n} ${n===1?'kaart':'kaarten'}</span>${e.at?`<span>om ${time(e.at)}</span>`:''}</div>
+      ${open?`<div class="ap-cards">${n?e.l.cards.map(row).join(''):'<p class="ap-none">Deze lijst is leeg.</p>'}</div>`:''}
+      <div class="ap-acts"><button class="btn sm" data-act="archToggleList" data-id="${e.l.id}">${open?'Inklappen':'Bekijken'}</button><button class="btn sm" data-act="archRestoreList" data-id="${e.b.id}:${e.l.id}">Herstellen</button></div></div>`}
     const a=e.a,c=a.card,lbls=c.labels.map(id=>labelOf(a.board,id)).filter(Boolean);
     const items=(c.checklists||[]).flatMap(x=>x.items),done=items.filter(i=>i.done).length;
     const finished=c.done||(items.length>0&&done===items.length);
@@ -828,7 +845,7 @@ function renderModal(){
   root.innerHTML=`<div class="modal-back" id="modalBack"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(c.title)}">
     ${c.cover?`<div class="m-cover" style="background:${lb(c.cover)}"></div>`:''}
     ${loc.template?`<div class="archived-note tpl-note">${ic('cover')}Dit is een sjabloon. Wijzigingen worden automatisch opgeslagen.<button class="btn primary sm" data-act="useTemplateMenu" data-id="${c.id}">Kaart maken van dit sjabloon</button></div>`:''}
-    ${loc.archived?`<div class="archived-note">${ic('archive')}Deze kaart is gearchiveerd.<button class="btn sm" data-act="restoreCard" data-id="${c.id}">Herstellen</button>${deleteConfirm===c.id?`<button class="btn danger sm" data-act="deleteCard" data-id="${c.id}">Ja, definitief verwijderen</button>`:`<button class="btn sm" data-act="askDeleteCard" data-id="${c.id}">Verwijderen</button>`}</div>`:''}
+    ${loc.archived?`<div class="archived-note">${ic('archive')}${loc.inList?`Deze kaart zit in de gearchiveerde lijst "${esc(loc.list.title)}".<button class="btn sm" data-act="archRestoreList" data-id="${loc.board.id}:${loc.list.id}">Lijst herstellen</button>`:`Deze kaart is gearchiveerd.<button class="btn sm" data-act="restoreCard" data-id="${c.id}">Herstellen</button>`}${deleteConfirm===c.id?`<button class="btn danger sm" data-act="deleteCard" data-id="${c.id}">Ja, definitief verwijderen</button>`:`<button class="btn sm" data-act="askDeleteCard" data-id="${c.id}">Verwijderen</button>`}</div>`:''}
     <button class="icon-btn m-close" data-act="closeModal" aria-label="Sluiten">${ic('x',20)}</button>
     <div class="m-head">${loc.template?`<span class="tick-lg">${ic('cover',22)}</span>`:`<button class="tick-lg ${c.done?'on':''}" data-act="toggleDone" data-id="${c.id}" aria-label="${c.done?'Markeren als niet voltooid':'Markeren als voltooid'}">${ic(c.done?'circleCheck':'circle',22)}</button>`}
       <textarea class="m-title" id="mTitle" rows="1" aria-label="Kaarttitel">${esc(c.title)}</textarea></div>
@@ -1481,7 +1498,7 @@ const ACT={
   copyCard(id){const loc=locate(id);const n=cloneCard(loc.card);n.title=loc.card.title+' (kopie)';if(loc.arr)loc.arr.splice(loc.i+1,0,n);else(board().lists[0]?.cards||S.inbox).push(n);modalId=n.id;commit();toast('Kaart gekopieerd')},
   archiveCard(id){archiveCard(id);modalId=null;commit()},
   askDeleteCard(id){deleteConfirm=id;renderModal()},
-  deleteCard(id){const loc=locate(id);if(loc.archived)loc.board.archive.cards.splice(loc.i,1);else loc.arr.splice(loc.i,1);dropBlobs(loc.card);modalId=null;deleteConfirm=null;commit();toast('Kaart verwijderd')},
+  deleteCard(id){const loc=locate(id);(loc.arr||loc.board.archive.cards).splice(loc.i,1);dropBlobs(loc.card);modalId=null;deleteConfirm=null;commit();toast('Kaart verwijderd')},
   async openAtt(id){
     const a=locate(modalId).card.attachments.find(x=>x.id===id);
     let blob;try{blob=await FILES.get(id)}catch(e){}
@@ -1529,6 +1546,7 @@ const ACT={
   archiveMenu(){closePop();archPage=!archPage;archConfirm=null;if(archPage){archQ='';modalId=null;drawerOpen=false}renderAll();if(archPage&&!narrow())$('#archSearch')?.focus()},
   closeArchive(){archPage=false;archConfirm=null;renderAll()},
   archRestore(id){restoreCard(id);archConfirm=null;commit();toast('Kaart hersteld')},
+  archToggleList(id){archOpen.has(id)?archOpen.delete(id):archOpen.add(id);fillArchive()},
   archAskDelete(id){archConfirm=id;fillArchive()},
   archDelete(id){for(const b of S.boards){const i=b.archive.cards.findIndex(a=>a.card.id===id);if(i>=0){const [a]=b.archive.cards.splice(i,1);dropBlobs(a.card)}}archConfirm=null;commit();toast('Kaart verwijderd')},
   archRestoreList(v){const [bid,lid]=v.split(':');const b=S.boards.find(x=>x.id===bid);const i=b.archive.lists.findIndex(l=>l.id===lid);if(i>=0)b.lists.push(b.archive.lists.splice(i,1)[0]);commit();toast('Lijst hersteld')},

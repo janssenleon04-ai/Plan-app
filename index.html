@@ -429,7 +429,7 @@ label.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
 <div id="app">
   <header class="top">
     <div class="logo"><div class="logo-mark"><i></i><i></i></div><span>Planbord</span></div>
-    <button class="archive-box" id="archiveBox" data-act="archiveMenu" data-drop="archive" title="Archief: sleep een kaart hierheen om te archiveren" aria-label="Archief openen"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg><span class="lbl-txt">Archief</span><span class="arch-count" id="archCount"></span></button>
+    <button class="archive-box" id="archiveBox" data-act="archiveMenu" data-drop="archive" title="Archief: sleep een kaart of een hele lijst hierheen om te archiveren" aria-label="Archief openen"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg><span class="lbl-txt">Archief</span><span class="arch-count" id="archCount"></span></button>
     <div class="search">
       <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
       <input id="q" type="search" placeholder="Zoeken in kaarten" autocomplete="off" aria-label="Zoeken in kaarten">
@@ -736,7 +736,7 @@ function renderAll(){
   renderInbox();renderPlanner();renderBoard();renderDock();renderModal();renderArchiveCount();
 }
 function allArchived(){return S.boards.flatMap(b=>b.archive.cards.map(a=>({...a,board:b})))}
-function renderArchiveCount(){const n=allArchived().length;$('#archCount').textContent=n?String(n):'';renderArchPage()}
+function renderArchiveCount(){const n=allArchived().length+S.boards.reduce((k,b)=>k+b.archive.lists.length,0);$('#archCount').textContent=n?String(n):'';renderArchPage()}
 let archQ='',archConfirm=null;
 let archPage=false,archBoard='';
 const DAGVOL=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
@@ -1433,7 +1433,7 @@ const ACT={
   moveAll(v){const [from,to]=v.split(':');const f=findList(from).list,t=findList(to).list;f.cards.forEach(c=>log(c,`heeft deze kaart verplaatst van ${f.title} naar ${t.title}`));t.cards.push(...f.cards);f.cards=[];closePop();commit()},
   listColor(v){const [id,c]=v.split(':');findList(id).list.color=c;commit();repop()},
   archiveAllCards(id){const l=findList(id).list;const b=board();l.cards.forEach(c=>{log(c,'heeft deze kaart gearchiveerd');b.archive.cards.unshift({card:c,listId:l.id,at:Date.now()})});l.cards=[];closePop();commit();toast('Kaarten gearchiveerd')},
-  archiveList(id){const b=board();const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);l.archivedAt=Date.now();b.archive.lists.unshift(l);closePop();commit();toast('Lijst gearchiveerd',()=>{const j=b.archive.lists.indexOf(l);if(j>=0){b.archive.lists.splice(j,1);b.lists.splice(i,0,l);commit()}})},
+  archiveList(id){const b=board();const i=b.lists.findIndex(l=>l.id===id);const [l]=b.lists.splice(i,1);const nx=b.lists[i];if(!l.under&&nx&&nx.under)delete nx.under;delete l.under;l.archivedAt=Date.now();b.archive.lists.unshift(l);closePop();commit();toast('Lijst gearchiveerd',()=>{const j=b.archive.lists.indexOf(l);if(j>=0){b.archive.lists.splice(j,1);b.lists.splice(i,0,l);commit()}})},
   toggleDone(id){const c=locate(id).card;c.done=!c.done;log(c,c.done?'heeft deze kaart als voltooid gemarkeerd':'heeft deze kaart als niet voltooid gemarkeerd');commit()},
   openCard(id){modalId=id;descEditing=false;editingItem=null;deleteConfirm=null;closePop();renderModal()},
   closeModal(){modalId=null;descEditing=false;deleteConfirm=null;closePop();renderModal()},
@@ -1761,6 +1761,8 @@ function moveDrag(x,y){
     p.zone=zone;
   }else{
     const row=p.row;
+    const box=$('#archiveBox');const onBox=!!under.closest('#archiveBox');box.classList.toggle('drop-on',onBox);p.toArchive=onBox;
+    if(onBox)return;
     if(row.classList.contains('layout-rij')){moveListFree(p,row,x,y);return}
     const ls=[...row.querySelectorAll(':scope > .list:not(.drag-src)')];
     const stacked=row.classList.contains('layout-kolom');
@@ -1812,7 +1814,15 @@ function endDrag(){
     }
   }else{
     const b=S.boards.find(x=>x.id===p.row.dataset.lists);const id=p.el.dataset.list;
-    if(p.row.classList.contains('layout-rij')){
+    $('#archiveBox').classList.remove('drop-on');
+    if(p.toArchive){
+      // a whole list dropped on the archive box; the list under it (if any) becomes the top of its column
+      p.row.querySelectorAll('.ph-col').forEach(c=>c.remove());
+      const i=b.lists.findIndex(l=>l.id===id);
+      if(i>=0){const [l]=b.lists.splice(i,1);const wasUnder=!!l.under,next=b.lists[i],promoted=!wasUnder&&next&&next.under;
+        if(promoted)delete next.under;delete l.under;l.archivedAt=Date.now();b.archive.lists.unshift(l);
+        toast(`Lijst "${l.title}" gearchiveerd`,()=>{const j=b.archive.lists.indexOf(l);if(j<0)return;b.archive.lists.splice(j,1);if(wasUnder)l.under=true;if(promoted)next.under=true;b.lists.splice(Math.min(i,b.lists.length),0,l);commit()})}
+    }else if(p.row.classList.contains('layout-rij')){
       const order=[];p.row.querySelectorAll(':scope > .lcol').forEach(col=>{let first=true;
         col.querySelectorAll(':scope > .list[data-list]:not(.drag-src), :scope > .ph-list').forEach(el=>{const lid=el.classList.contains('ph-list')?id:el.dataset.list;order.push({lid,under:!first});first=false})});
       const byId=new Map(b.lists.map(l=>[l.id,l]));const seen=new Set();const out=[];

@@ -92,6 +92,8 @@ input,textarea,select{font:inherit;color:var(--fg)}
 .acct-btn[data-sync=bezig]::after{background:#e2b203}
 .acct-btn[data-sync=fout]::after,.acct-btn[data-sync=keuze]::after{background:#e34935}
 .acct-btn[data-sync=offline]::after{background:var(--subtle)}
+.name-hint{margin:6px 0 0 36px;font-size:12px;color:var(--muted)}
+.name-hint .lnk{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:12px}
 .acct-p{margin:0 0 8px;font-size:13px;overflow-wrap:anywhere}
 .acct-msg{margin:10px 0 0;font-size:13px;padding:8px 10px;border-radius:6px;background:var(--accent-soft)}
 .acct-lnk{margin-top:8px;font-size:13px;background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
@@ -576,7 +578,13 @@ function locate(id){
     for(const l of b.archive.lists){i=l.cards.findIndex(c=>c.id===id);if(i>=0)return {card:l.cards[i],arr:l.cards,i,list:l,board:b,archived:true,inList:true}}}
   return null;
 }
-const log=(c,text)=>{c.activity=c.activity||[];c.activity.push({text,at:Date.now()})};
+const log=(c,text)=>{c.activity=c.activity||[];c.activity.push(nameSet()?{text,at:Date.now(),by:me()}:{text,at:Date.now()})};
+// The name shown with comments and activity: set per account under the round button top right (synced with the boards)
+function me(){const n=(S.me&&S.me.name||'').trim();if(n)return n;const e=typeof CLOUD!=='undefined'&&CLOUD.email();if(e){const x=e.replace(/@.*/,'').replace(/[._-]+/g,' ').trim();return x.charAt(0).toUpperCase()+x.slice(1)}return 'Ik'}
+const nameSet=()=>!!(S.me&&(S.me.name||'').trim());
+const inits=n=>{const p=String(n||'?').trim().split(/\s+/).filter(Boolean);return (p.length>1?p[0][0]+p[p.length-1][0]:(p[0]||'?').slice(0,2)).toUpperCase()};
+const who=x=>x&&x.by||me();
+const memberName=m=>m&&m.length>2?m:me();
 
 /* ---------- UI state ---------- */
 let composer=null, addingList=false, editingListTitle=null, editingBoardTitle=false;
@@ -622,7 +630,7 @@ function cardHtml(c,b,opts={}){
   if(c.attachments&&c.attachments.length) badges+=`<span class="badge" title="Bijlagen">${ic('clip',14)}${c.attachments.length}</span>`;
   if(c.comments.length) badges+=`<span class="badge" title="Opmerkingen">${ic('chat',14)}${c.comments.length}</span>`;
   if(checks[1]) badges+=`<span class="badge ${checks[0]===checks[1]?'ok':''}" title="Checklist-items">${ic('checklist',14)}${checks[0]}/${checks[1]}</span>`;
-  if(c.members.length) badges+=c.members.map(m=>`<span class="avatar sm" title="Leon Janssen">${esc(m)}</span>`).join('');
+  if(c.members.length) badges+=c.members.map(m=>`<span class="avatar sm" title="${esc(memberName(m))}">${esc(inits(memberName(m)))}</span>`).join('');
   const finished=c.done||(checks[1]>0&&checks[0]===checks[1]);
   return `<div class="card ${c.done?'done':''} ${finished?'finished':''}" data-card="${c.id}" tabindex="0" aria-label="${esc(c.title)}">
     ${c.cover?`<div class="cover" style="background:${lb(c.cover)}"></div>`:''}
@@ -750,7 +758,7 @@ function renderAll(){
 function allArchived(){return S.boards.flatMap(b=>b.archive.cards.map(a=>({...a,board:b})))}
 function renderArchiveCount(){const n=allArchived().length+S.boards.reduce((k,b)=>k+b.archive.lists.length,0);$('#archCount').textContent=n?String(n):'';renderArchPage()}
 let archQ='',archConfirm=null;
-let archPage=false,archBoard='';const archOpen=new Set();
+let archPage=false,archBoard='',nameTimer=null;const archOpen=new Set();
 const DAGVOL=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
 const MAANDVOL=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
 function archAt(a){if(a.at)return a.at;const l=(a.card.activity||[]).filter(x=>/gearchiveerd/.test(x.text)).sort((x,y)=>y.at-x.at)[0];return l?l.at:0}
@@ -853,7 +861,7 @@ function renderModal(){
     <div class="m-grid">
       <div class="m-main">
         <div class="m-meta">
-          ${c.members.length?`<div><h4>Leden</h4><div class="row">${c.members.map(m=>`<span class="avatar" title="Leon Janssen">${esc(m)}</span>`).join('')}</div></div>`:''}
+          ${c.members.length?`<div><h4>Leden</h4><div class="row">${c.members.map(m=>`<span class="avatar" title="${esc(memberName(m))}">${esc(inits(memberName(m)))}</span>`).join('')}</div></div>`:''}
           ${lbls.length?`<div><h4>Labels</h4><div class="row">${lbls.map(l=>`<span class="lbl wide" style="background:${lb(l.color)};${ink(l.color)}">${esc(l.name||' ')}</span>`).join('')}<button class="chipbtn" data-act="labelMenu" data-id="${c.id}" aria-label="Labels bewerken">${ic('plus')}</button></div></div>`:''}
           ${c.due?`<div><h4>Vervaldatum</h4><div class="row"><button class="chipbtn" data-act="dateMenu" data-id="${c.id}">${fmtDue(c.due)} ${parseISO(c.due).getFullYear()} ${st==='ok'?'<span class="duepill ok">Voltooid</span>':st==='late'?'<span class="duepill late">Verlopen</span>':st==='soon'?'<span class="duepill soon">Binnenkort</span>':''}</button></div></div>`:''}
           ${c.watch?`<div><h4>Meldingen</h4><div class="row"><button class="chipbtn" data-act="toggleWatch" data-id="${c.id}">${ic('eye')}Volgend</button></div></div>`:''}
@@ -875,9 +883,9 @@ function renderModal(){
           <div class="att-hint" style="margin-top:6px">Sleep een mail uit Outlook of een bestand hierheen.</div>
         </section>
         ${loc.template?'':`<section class="m-sec"><div class="m-sec-head">${ic('chat',20)}<h3>Opmerkingen en activiteit</h3></div>
-          <form class="comment-box" id="commentForm"><span class="avatar">LE</span><textarea id="commentInput" placeholder="Schrijf een opmerking…" aria-label="Opmerking">${esc(commentDraft)}</textarea><button class="btn primary sm" type="submit" style="align-self:flex-start">Opslaan</button></form>
-          ${acts.map(a=>a.kind==='c'?`<div class="act"><span class="avatar">LE</span><div style="flex:1;min-width:0"><span class="who">Leon Janssen</span> <span class="when">${fmtTime(a.at)}</span><div class="bubble">${esc(a.text)}</div><button class="lnk" data-act="delComment" data-id="${a.id}">Verwijderen</button></div></div>`
-            :`<div class="act"><span class="avatar">LE</span><div><span class="who">Leon Janssen</span> ${esc(a.text)}<div class="when">${fmtTime(a.at)}</div></div></div>`).join('')}
+          <form class="comment-box" id="commentForm"><span class="avatar" title="${esc(me())}">${esc(inits(me()))}</span><textarea id="commentInput" placeholder="Schrijf een opmerking…" aria-label="Opmerking">${esc(commentDraft)}</textarea><button class="btn primary sm" type="submit" style="align-self:flex-start">Opslaan</button></form>${nameSet()?'':`<p class="name-hint">Je opmerkingen staan nu op naam van "${esc(me())}". <button class="lnk" data-act="accountMenu">Naam invullen</button></p>`}
+          ${acts.map(a=>a.kind==='c'?`<div class="act"><span class="avatar">${esc(inits(who(a)))}</span><div style="flex:1;min-width:0"><span class="who">${esc(who(a))}</span> <span class="when">${fmtTime(a.at)}</span><div class="bubble">${esc(a.text)}</div><button class="lnk" data-act="delComment" data-id="${a.id}">Verwijderen</button></div></div>`
+            :`<div class="act"><span class="avatar">${esc(inits(who(a)))}</span><div><span class="who">${esc(who(a))}</span> ${esc(a.text)}<div class="when">${fmtTime(a.at)}</div></div></div>`).join('')}
         </section>`}
       </div>
       <div class="m-side">
@@ -1276,6 +1284,7 @@ const CLOUD=(()=>{
   return {
     init,changed,upload,download,removeFile,fill,claudeKey,claudeOff,
     signedIn:()=>!!auth,
+    email:()=>auth&&auth.user.email||'',
     async login(email,pw){msg='';const s=await authPost('/auth/v1/token?grant_type=password',{email,password:pw});const before=auth&&auth.user.id;setSession(s);if(before!==auth.user.id){st=fresh();saveSt()}start();pull(true)},
     async signup(email,pw){msg='';const j=await authPost('/auth/v1/signup?redirect_to='+encodeURIComponent(appUrl()),{email,password:pw});
       if(j.access_token){setSession(j);st=fresh();saveSt();start();pull(true);return 'in'}
@@ -1313,7 +1322,7 @@ const ACT={
   },
   accountMenu(id,a){
     const anchor=a||$('#avatarBtn');if(popEl&&popKey&&popKey[0]==='accountMenu'&&a){closePop();return}
-    openPop(anchor,'Account','<div id="acctBody"></div>');CLOUD.fill();const e=$('#acctEmail');if(e&&!narrow())e.focus();
+    openPop(anchor,'Account',`<label class="fl" for="acctName" style="margin-top:0">Je naam</label><input class="field" id="acctName" autocomplete="name" placeholder="Bijv. Leon Janssen" value="${esc(S.me&&S.me.name||'')}"><small class="acct-sub">Staat bij je opmerkingen en activiteit.</small><div class="menu-sep"></div><div id="acctBody"></div>`);CLOUD.fill();const e=$('#acctEmail');if(e&&!narrow())e.focus();
   },
   async acctLogin(){const e=$('#acctEmail').value.trim(),p=$('#acctPw').value;if(!e||!p){CLOUD.setMsg('Vul je e-mailadres en wachtwoord in.');return}
     CLOUD.setMsg('Bezig met inloggen…');try{await CLOUD.login(e,p);toast('Ingelogd')}catch(x){CLOUD.setMsg(x.message)}},
@@ -1457,7 +1466,7 @@ const ACT={
   editDesc(){descEditing=true;renderModal()},
   cancelDesc(){descEditing=false;renderModal()},
   saveDesc(id){const c=locate(id).card;c.desc=$('#descInput').value.trim();descEditing=false;commit()},
-  toggleMember(id){const c=locate(id).card;c.members=c.members.length?[]:['LE'];commit()},
+  toggleMember(id){const c=locate(id).card;c.members=c.members.length?[]:[me()];commit()},
   toggleWatch(id){const c=locate(id).card;c.watch=!c.watch;commit()},
   labelMenu(id,a){
     const loc=locate(id),b=loc.board||board(),c=loc.card;
@@ -1613,7 +1622,7 @@ document.addEventListener('submit',e=>{
   if(f.id==='inboxForm'){const t=$('#inboxAdd');const v=t.value.trim();if(!v)return;t.value='';addCardTo('inbox',v);commit();$('#inboxAdd').focus();return}
   if(f.dataset.addListForm){const bid=f.dataset.addListForm;const inp=f.querySelector('input');const v=inp.value.trim();if(!v){inp.focus();return}S.boards.find(b=>b.id===bid).lists.push({id:uid(),title:v,color:'none',collapsed:false,cards:[]});commit();const l=document.querySelector(`[data-lists="${bid}"]`);l.scrollLeft=l.scrollWidth;return}
   if(f.id==='qsForm'){const i=$('#qsInput');const v=i.value.trim();if(!v)return;i.value='';addQuickStep(v);fillQuickSteps();$('#qsInput').focus();return}
-  if(f.id==='commentForm'){const t=$('#commentInput');const v=t.value.trim();if(!v)return;t.value='';locate(modalId).card.comments.push({id:uid(),text:v,at:Date.now()});commit();return}
+  if(f.id==='commentForm'){const t=$('#commentInput');const v=t.value.trim();if(!v)return;t.value='';locate(modalId).card.comments.push(nameSet()?{id:uid(),text:v,at:Date.now(),by:me()}:{id:uid(),text:v,at:Date.now()});commit();return}
   if(f.id==='clForm'){const c=locate(f.dataset.id).card;const t=$('#clTitle').value.trim()||'Actiestappen';const cl={id:uid(),title:t,items:[]};c.checklists.push(cl);closePop();pendingFocus='ciadd-'+cl.id;commit();return}
   if(f.dataset.ciAdd==='new'){const v=f.querySelector('input').value.trim();if(!v)return;const cl={id:uid(),title:'Actiestappen',items:[{id:uid(),text:v,done:false}]};locate(modalId).card.checklists.push(cl);pendingFocus='ciadd-'+cl.id;commit();return}
   if(f.dataset.ciAdd){const cl=locate(modalId).card.checklists.find(x=>x.id===f.dataset.ciAdd);const i=f.querySelector('input');const v=i.value.trim();if(!v)return;cl.items.push({id:uid(),text:v,done:false});pendingFocus='ciadd-'+cl.id;commit();return}
@@ -1646,6 +1655,7 @@ document.addEventListener('input',e=>{
   const t=e.target;
   if(t.id==='archSearch'){archQ=t.value;fillArchive();return}
   if(t.id==='archBoardSel'){archBoard=t.value;fillArchive();return}
+  if(t.id==='acctName'){S.me={name:t.value.slice(0,60)};save();clearTimeout(nameTimer);nameTimer=setTimeout(()=>{renderModal();renderBoard(true)},400);return}
   if(t.id==='q'){q=t.value;renderInbox();renderPlanner();renderBoard();return}
   if(t.id==='mTitle'||t.id==='inboxAdd'||t.matches('[data-composer]'))autosize(t);
   // Edits are kept while typing, so nothing is lost when you click elsewhere or close the app.
